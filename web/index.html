@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#122e2a">
+  <meta name="description" content="Admin Agent : votre atelier administratif local. Contrôler les pièces, préparer les dossiers, garder la décision.">
+  <title>Admin Agent — Votre atelier administratif</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navigation principale">
+      <a class="brand" href="#overview" aria-label="Admin Agent, accueil"><span class="brand-mark" aria-hidden="true">a<span>·</span></span><span>admin agent<small>L’atelier administratif</small></span></a>
+      <div class="workspace-label"><span class="workspace-dot"></span> Espace de travail local <span class="tag">PILOTE</span></div>
+      <nav>
+        <a class="nav-link active" href="#overview" data-page="overview"><span class="nav-icon" aria-hidden="true">◫</span> Vue d’ensemble</a>
+        <a class="nav-link" href="#tasks" data-page="tasks"><span class="nav-icon" aria-hidden="true">▤</span> Dossiers <span class="nav-count" id="nav-task-count">0</span></a>
+        <a class="nav-link" href="#skills" data-page="skills"><span class="nav-icon" aria-hidden="true">✳</span> Agents & skills</a>
+        <a class="nav-link" href="#controls" data-page="controls"><span class="nav-icon" aria-hidden="true">◎</span> Contrôle & données</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note"><span class="status-dot"></span><strong>Vous gardez la décision.</strong><p>Les agents préparent.<br>Vous vérifiez et validez.</p></div>
+        <div class="profile"><span class="avatar">EA</span><span>Espace entrepreneur<small>Pilote mono-entreprise</small></span></div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><div class="breadcrumb">Espace de travail <span>/</span> <strong id="current-page">Vue d’ensemble</strong></div><span class="mode-badge" id="mode-badge"><span class="status-dot"></span> Mode hors ligne</span></header>
+      <main id="main" tabindex="-1"><div class="initial-loading"><div class="loader"></div><p>Ouverture de votre atelier…</p></div></main>
+      <footer class="app-footer"><span>Admin Agent · Pilote local</span><span>Aucun e-mail envoyé. Aucun paiement ni dépôt effectué.</span></footer>
+    </div>
+  </div>
+  <dialog id="create-dialog" class="dialog dialog-create" aria-labelledby="create-dialog-title"></dialog>
+  <dialog id="detail-dialog" class="dialog dialog-detail" aria-labelledby="detail-dialog-title"></dialog>
+  <dialog id="skill-dialog" class="dialog dialog-skill" aria-labelledby="skill-dialog-title"></dialog>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+</body>
+</html>

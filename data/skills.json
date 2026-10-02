@@ -1,0 +1,248 @@
+{
+  "skills": [
+    {
+      "id": "invoice-check",
+      "name": "Contrôle des factures",
+      "description": "Contrôler les champs et les totaux d’une facture simple avant revue humaine.",
+      "priority": "P0",
+      "agent": "Contrôle documentaire",
+      "inputs": [
+        "invoice_number",
+        "supplier",
+        "customer",
+        "issue_date",
+        "due_date",
+        "net_amount",
+        "vat_rate",
+        "vat_amount",
+        "total_amount",
+        "currency",
+        "paid"
+      ],
+      "outputs": [
+        "Rapport de cohérence",
+        "Champs manquants",
+        "Points de revue"
+      ],
+      "status": "implemented",
+      "path": "skills/invoice-check/SKILL.md"
+    },
+    {
+      "id": "receivables-followup",
+      "name": "Suivi des encaissements",
+      "description": "Préparer un brouillon interne de suivi avec contrôle du paiement, du litige et de l’échéance.",
+      "priority": "P0",
+      "agent": "Encaissements et trésorerie",
+      "inputs": [
+        "Facture structurée",
+        "disputed",
+        "last_reminder_date si connue"
+      ],
+      "outputs": [
+        "Brouillon local",
+        "Blocages de relance",
+        "Contrôles du montant"
+      ],
+      "status": "implemented",
+      "path": "skills/receivables-followup/SKILL.md"
+    },
+    {
+      "id": "bookkeeping-pack",
+      "name": "Dossier pour le comptable",
+      "description": "Contrôler l’inventaire des justificatifs d’une période et préparer les anomalies à examiner.",
+      "priority": "P0",
+      "agent": "Contrôle documentaire",
+      "inputs": [
+        "period",
+        "documents",
+        "expected_documents si connu"
+      ],
+      "outputs": [
+        "Inventaire contrôlé",
+        "Doublons possibles",
+        "Pièces et informations manquantes"
+      ],
+      "status": "implemented",
+      "path": "skills/bookkeeping-pack/SKILL.md"
+    },
+    {
+      "id": "admin-triage",
+      "name": "Triage administratif",
+      "description": "Classer heuristiquement une demande et proposer sa prochaine action interne.",
+      "priority": "P0",
+      "agent": "Bureau administratif",
+      "inputs": [
+        "title",
+        "description",
+        "country"
+      ],
+      "outputs": [
+        "Orientation proposée",
+        "Questions de qualification",
+        "Prochaine action interne"
+      ],
+      "status": "implemented",
+      "path": "skills/admin-triage/SKILL.md"
+    },
+    {
+      "id": "expense-review",
+      "name": "Revue des notes de frais",
+      "description": "Guider la vérification des reçus et de la politique interne, sans décider du traitement fiscal.",
+      "priority": "P1",
+      "agent": "Contrôle documentaire",
+      "inputs": [
+        "Lignes de dépenses",
+        "Références des reçus",
+        "Politique interne datée"
+      ],
+      "outputs": [
+        "Checklist de frais",
+        "Écarts à examiner",
+        "Décisions requises"
+      ],
+      "status": "guided",
+      "path": "skills/expense-review/SKILL.md"
+    },
+    {
+      "id": "deadline-watch",
+      "name": "Préparation des échéances",
+      "description": "Guider la qualification des obligations et de leurs dates à partir de sources actuelles.",
+      "priority": "P1",
+      "agent": "Échéances et conformité",
+      "inputs": [
+        "Profil de l’entreprise",
+        "Période",
+        "Avis ou source officielle",
+        "Responsable"
+      ],
+      "outputs": [
+        "Liste d’échéances à vérifier",
+        "Dépendances et sources",
+        "Pièces de préparation"
+      ],
+      "status": "guided",
+      "path": "skills/deadline-watch/SKILL.md"
+    },
+    {
+      "id": "supplier-watch",
+      "name": "Suivi des fournisseurs",
+      "description": "Guider le rapprochement commande-réception-facture et la vérification des changements déclarés.",
+      "priority": "P1",
+      "agent": "Achats et contrats",
+      "inputs": [
+        "Commande",
+        "Réception",
+        "Facture",
+        "Références fournisseur"
+      ],
+      "outputs": [
+        "Matrice d’écarts",
+        "Points de vérification indépendante",
+        "Note interne"
+      ],
+      "status": "guided",
+      "path": "skills/supplier-watch/SKILL.md"
+    },
+    {
+      "id": "contract-watch",
+      "name": "Suivi des contrats",
+      "description": "Guider l’extraction des engagements, renouvellements et préavis avec référence aux clauses.",
+      "priority": "P1",
+      "agent": "Achats et contrats",
+      "inputs": [
+        "Contrat",
+        "Avenants",
+        "Versions et pages",
+        "Date de référence"
+      ],
+      "outputs": [
+        "Tableau d’engagements",
+        "Ambiguïtés",
+        "Questions avant décision"
+      ],
+      "status": "guided",
+      "path": "skills/contract-watch/SKILL.md"
+    },
+    {
+      "id": "hr-onboarding",
+      "name": "Coordination d’arrivée salarié",
+      "description": "Préparer une checklist RH et opérationnelle pour un salarié déjà choisi.",
+      "priority": "P2",
+      "agent": "Coordination RH",
+      "inputs": [
+        "Employeur",
+        "Pays et lieu de travail",
+        "Date prévue",
+        "Type de relation",
+        "État des pièces"
+      ],
+      "outputs": [
+        "Checklist de préparation",
+        "Responsables",
+        "Points à valider par RH"
+      ],
+      "status": "guided",
+      "path": "skills/hr-onboarding/SKILL.md"
+    },
+    {
+      "id": "compliance-watch",
+      "name": "Dossier de conformité",
+      "description": "Préparer un inventaire des preuves et écarts pour un périmètre explicitement défini.",
+      "priority": "P2",
+      "agent": "Échéances et conformité",
+      "inputs": [
+        "Activités concernées",
+        "Catégories de données",
+        "Prestataires",
+        "Mesures et documents"
+      ],
+      "outputs": [
+        "Inventaire de preuves",
+        "Écarts documentés",
+        "Questions au responsable"
+      ],
+      "status": "guided",
+      "path": "skills/compliance-watch/SKILL.md"
+    },
+    {
+      "id": "cash-visibility",
+      "name": "Visibilité de trésorerie",
+      "description": "Guider la construction de scénarios à partir d’un solde daté et de flux fournis.",
+      "priority": "P1",
+      "agent": "Encaissements et trésorerie",
+      "inputs": [
+        "Solde initial daté",
+        "Flux documentés",
+        "Horizon",
+        "Devises"
+      ],
+      "outputs": [
+        "Scénarios préparatoires",
+        "Incertitudes",
+        "Flux à vérifier"
+      ],
+      "status": "guided",
+      "path": "skills/cash-visibility/SKILL.md"
+    },
+    {
+      "id": "weekly-brief",
+      "name": "Briefing hebdomadaire",
+      "description": "Synthétiser les seules tâches choisies et les décisions attendues sans inventer de résultat.",
+      "priority": "P1",
+      "agent": "Bureau administratif",
+      "inputs": [
+        "Période et fuseau",
+        "Tâches sélectionnées",
+        "Versions et statuts",
+        "État précédent si comparaison"
+      ],
+      "outputs": [
+        "Synthèse interne",
+        "Décisions prioritaires",
+        "Prochaines actions"
+      ],
+      "status": "guided",
+      "path": "skills/weekly-brief/SKILL.md"
+    }
+  ]
+}

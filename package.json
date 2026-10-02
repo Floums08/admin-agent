@@ -1,0 +1,8 @@
+{
+  "name": "admin-agent-ui-qa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Optional DOM integration tests; the application has no npm runtime dependency.",
+  "scripts": {"test:ui": "node tests/ui_smoke.cjs"},
+  "devDependencies": {"linkedom": "0.18.12"}
+}
