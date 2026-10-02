@@ -165,6 +165,11 @@ class Handler(BaseHTTPRequestHandler):
         self._authority()
         path = self._path()
         store = self.server.store
+        if path == "/api/session":
+            return self._json({"authenticated": True, "user": None, "csrf_token": None,
+                               "client": {"id": "local", "name": "Espace de travail local"},
+                               "scope": "local_single_business_pilot", "mode": mode(),
+                               "capabilities": {key: True for key in ("create", "analyze", "update", "review", "export", "demo")}})
         if path == "/api/health":
             return self._json({"status": "ok", "mode": mode(), "outbound_enabled": False, "scope": "local_single_business_pilot"})
         if path == "/api/skills":

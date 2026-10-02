@@ -1,3 +1,3 @@
-"""Admin Agent: local, review-first administrative workbench."""
+"""Admin Agent: review-first workbench, isolated production deployment per client."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

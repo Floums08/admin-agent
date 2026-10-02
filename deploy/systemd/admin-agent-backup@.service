@@ -1,0 +1,25 @@
+[Unit]
+Description=Encrypted Admin Agent backup for %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Root reads the private data and credentials; process sandbox excludes unrelated paths.
+User=root
+Group=root
+EnvironmentFile=/etc/admin-agent/%i-backup.env
+WorkingDirectory=/opt/admin-agent
+ExecStart=/opt/admin-agent/deploy/backup.sh
+UMask=0077
+RuntimeDirectory=admin-agent-backup-%i
+RuntimeDirectoryMode=0700
+CacheDirectory=admin-agent-%i
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/admin-agent/runtime/%i/data /opt/admin-agent/runtime/%i/evidence
+ReadWritePaths=/run/admin-agent-backup-%i /var/cache/admin-agent-%i
+# SQLite online backup may need access to existing WAL/SHM files.
+TimeoutStartSec=30min

@@ -9,3 +9,20 @@
 .rail-skills-link{display:inline-block;margin-top:12px}
 
 .skip-link{position:absolute;top:-80px;left:15px;z-index:200;background:var(--green-dark);color:#fff;padding:12px 18px;border-radius:6px}.skip-link:focus{top:12px}
+
+/* Personal sessions. The auth page contains no dossier data. */
+[hidden]{display:none!important}
+.session-actions{display:flex;align-items:center;gap:12px;min-width:0}
+.client-mobile{display:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted)}
+.workspace-label{overflow-wrap:anywhere}.workspace-label #client-label{min-width:0}
+.profile #profile-label{min-width:0;overflow-wrap:anywhere}
+.auth-mode .sidebar{display:none}.auth-mode .main-shell{width:100%;margin-left:0}
+.auth-mode .breadcrumb{visibility:hidden}.auth-mode main{display:grid;place-items:center;min-height:calc(100dvh - 155px);padding:32px 20px}
+.auth-mode .client-mobile{display:block}
+.login-card{width:100%;max-width:460px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:36px;box-shadow:0 14px 50px #19352e0a}
+.login-card h1{font-size:28px;line-height:1.2;margin-bottom:14px}
+.login-card p{font-size:13px;line-height:1.7}.login-card .login-client{font-size:16px;color:var(--green);font-weight:600;margin-bottom:20px;overflow-wrap:anywhere}
+.login-card form{display:flex;flex-direction:column;gap:18px;margin-top:24px}.login-card .form-field label{font-size:13px}.login-card .form-field input{font-size:16px;min-height:44px}.login-card .form-field small{font-size:11px;line-height:1.5}.login-card .btn{font-size:13px;min-height:44px}.login-card .login-help{font-size:11px;margin:22px 0 0;color:var(--muted)}
+.session-notice{padding:13px 15px;border:1px solid #dfe7d9;background:#edf3e9;border-radius:7px;font-size:12px;color:#496345;line-height:1.65;margin:18px 0}
+@media(max-width:650px){.session-actions{gap:8px;flex-wrap:wrap;justify-content:flex-end}.session-actions .mode-badge{display:none}.session-actions .btn{font-size:10px;min-height:33px}.client-mobile{display:block;max-width:125px;font-size:10px}.topbar{height:auto;min-height:52px;gap:10px;padding-top:8px;padding-bottom:8px}.login-card{padding:25px 22px}.login-card h1{font-size:25px}.auth-mode .topbar .breadcrumb{display:none}.auth-mode .topbar{justify-content:flex-end}.auth-mode main{padding:24px 14px;min-height:calc(100dvh - 155px)}}
+@media(max-width:650px){.table-wrap table{min-width:0;table-layout:fixed}.table-wrap table th:first-child,.table-wrap table td:first-child{width:66%}.table-wrap table th:nth-child(4),.table-wrap table td:nth-child(4){display:none}.table-wrap table th:nth-child(3),.table-wrap table td:nth-child(3){width:34%;padding-left:4px}.table-task-page .task-title-button,.task-title-button{max-width:none;overflow-wrap:anywhere}.task-type>div{min-width:0}.table-wrap .status-pill{white-space:normal;overflow-wrap:anywhere}.task-subtitle{overflow-wrap:anywhere}.type-icon{display:none}}

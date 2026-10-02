@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0-documentation-template",
+  "example_only": true,
+  "note": "Exemple fictif à copier dans un espace privé. Ce fichier n'est pas importé par l'application ni par init-client. Aucun secret ou document réel ne doit être enregistré dans le dépôt.",
+  "onboarding_status": "not_launched",
+  "client": {
+    "client_id": "studio-exemple",
+    "legal_name": "Studio Exemple — entreprise fictive",
+    "legal_identifier": null,
+    "country": "FR",
+    "legal_form": null,
+    "tax_regime": null,
+    "vat_regime": null,
+    "confirmed_by_professional": null,
+    "confirmation_date": null,
+    "timezone": "Europe/Paris"
+  },
+  "service": {
+    "model": "managed_service_one_isolated_instance_per_legal_entity",
+    "first_workflow": "invoice-check",
+    "executable_workflows_available": [
+      "invoice-check",
+      "receivables-followup",
+      "bookkeeping-pack",
+      "admin-triage"
+    ],
+    "selected_workflows_approved": [],
+    "guided_skills_are_not_automation": true,
+    "external_ai_in_production": false,
+    "outbound_communications": false,
+    "payments_filings_signatures": false,
+    "pdf_ocr_and_external_connectors": false,
+    "monthly_volume_agreed": null,
+    "instance_cumulative_task_limit": 100,
+    "instance_business_event_limit": 20000,
+    "acceptance_tasks_count_against_capacity": true,
+    "capacity_projection_reviewed": false,
+    "service_hours_agreed": null,
+    "response_time_agreed": null,
+    "exclusions": [
+      "Factures à plusieurs taux, avoirs et montants négatifs",
+      "Rapprochement bancaire et paiements partiels automatisés",
+      "Validation fiscale, expertise comptable et paie",
+      "Envoi de messages ou contact client",
+      "Prise de décision RH"
+    ]
+  },
+  "people": {
+    "client_decision_owner": null,
+    "client_backup_owner": null,
+    "service_owner": null,
+    "operator": null,
+    "reviewer": null,
+    "technical_owner": null,
+    "privacy_owner": null,
+    "incident_channel_reference": null
+  },
+  "sources": {
+    "billing_system": null,
+    "payment_status_authority": null,
+    "original_documents_location": null,
+    "secure_intake_channel": null,
+    "source_reference_convention": "Référence de pièce + emplacement privé sans jeton + date de vérification + personne",
+    "test_documents_authorized": false,
+    "originals_uploaded_to_application": false
+  },
+  "deployment": {
+    "host_provider": null,
+    "host_region": null,
+    "dedicated_vm_per_client": true,
+    "public_origin": "https://admin.example.com",
+    "production_version": null,
+    "tls_verified": false,
+    "host_admin_mfa_verified": false,
+    "app_totp_enrollment_verified": false,
+    "revocation_test_passed": false,
+    "encrypted_disk_verified": false,
+    "time_sync_verified": false,
+    "monitoring_owner": null,
+    "secret_storage_reference": null
+  },
+  "data_processing": {
+    "role_assessment_reference": null,
+    "instructions_reference": null,
+    "processing_agreement_reference": null,
+    "legal_basis_assessment_reference": null,
+    "privacy_information_reference": null,
+    "subprocessors_approved": [],
+    "transfer_assessment_reference": null,
+    "impact_assessment_decision_reference": null,
+    "retention": {
+      "active_tasks": null,
+      "business_audit": null,
+      "security_events": "Technical default: maximum 90 days or 50000 entries, whichever bounds retention first; adequacy requires approval",
+      "exports_and_test_copies": null,
+      "backup_expiry": null,
+      "approved_by": null,
+      "approved_at": null
+    }
+  },
+  "continuity": {
+    "rpo_hours_agreed": null,
+    "rto_hours_agreed": null,
+    "backup_destination_reference": null,
+    "backup_schedule_verified": false,
+    "independent_encrypted_copy_verified": false,
+    "restore_drill_at": null,
+    "restore_drill_report_reference": null,
+    "recovery_access_tested": false
+  },
+  "acceptance": {
+    "uat_report_reference": null,
+    "uat_u01_to_u10_passed": false,
+    "visual_browser_check_passed": false,
+    "reviewer_training_completed": false,
+    "baseline_minutes_per_case": null,
+    "observed_total_minutes_per_case": null,
+    "critical_errors": null,
+    "go_no_go_reference": null,
+    "client_approved_at": null,
+    "service_approved_at": null,
+    "technical_approved_at": null
+  },
+  "offboarding": {
+    "return_format": "Application JSON export; originals remain in client document system",
+    "authorized_recipient": null,
+    "return_receipt_reference": null,
+    "deletion_and_backup_expiry_plan_reference": null,
+    "selective_automatic_purge_supported": false
+  }
+}

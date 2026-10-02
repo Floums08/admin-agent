@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "description": "Optional DOM integration tests; the application has no npm runtime dependency.",
-  "scripts": {"test:ui": "node tests/ui_smoke.cjs"},
-  "devDependencies": {"linkedom": "0.18.12"}
+  "scripts": {
+    "test:ui": "node tests/ui_smoke.cjs",
+    "test:auth-ui": "node tests/ui_auth.cjs",
+    "test:browser": "node tests/browser_smoke.cjs"
+  },
+  "devDependencies": {
+    "linkedom": "0.18.12",
+    "playwright": "1.56.1"
+  }
 }

@@ -1,6 +1,7 @@
 """Single-business local SQLite store with atomic idempotency and audit records."""
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -12,6 +13,10 @@ import uuid
 from .catalog import MAX_PAYLOAD_BYTES, get_skill
 from .engine import result_status
 from .errors import AppError
+
+
+audit_actor = ContextVar("audit_actor", default="local_operator")
+audit_guard = ContextVar("audit_guard", default=None)
 
 
 def now():
@@ -58,7 +63,7 @@ def validate_task(data):
             stack.extend((item, depth + 1) for item in value)
     try:
         size = len(encoded(payload).encode("utf-8"))
-    except (ValueError, TypeError, RecursionError) as exc:
+    except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
         raise AppError("Le dossier contient une valeur JSON invalide.") from exc
     if size > MAX_PAYLOAD_BYTES:
         raise AppError("Le dossier dépasse la limite de 32 000 octets.", 413, "payload_too_large")
@@ -70,7 +75,10 @@ def validate_task(data):
 
 
 class Store:
-    def __init__(self, path):
+    def __init__(self, path, max_tasks=None, max_events=None, max_result_bytes=None):
+        self.max_tasks = max_tasks
+        self.max_events = max_events
+        self.max_result_bytes = max_result_bytes
         self.path = str(path)
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
@@ -104,8 +112,13 @@ class Store:
         finally:
             connection.close()
 
-    @staticmethod
-    def _event(connection, task_id, action, details):
+    def _event(self, connection, task_id, action, details):
+        guard = audit_guard.get()
+        if guard is not None:
+            guard(connection)
+        if self.max_events is not None and connection.execute("SELECT count(*) FROM events").fetchone()[0] >= self.max_events:
+            raise AppError("Capacité de journal atteinte. Contactez l’administrateur avant de poursuivre.", 409, "capacity_reached")
+        details = dict(details, actor=audit_actor.get())
         connection.execute("INSERT INTO events(task_id,action,created_at,details) VALUES (?,?,?,?)",
                            (task_id, action, now(), encoded(details)))
 
@@ -127,6 +140,8 @@ class Store:
                     if previous["request_hash"] != request_hash:
                         raise AppError("Cette clé d'idempotence est déjà associée à un dossier différent.", 409, "idempotency_conflict")
                     return json.loads(previous["body"]), False
+            if self.max_tasks is not None and connection.execute("SELECT count(*) FROM tasks").fetchone()[0] >= self.max_tasks:
+                raise AppError("Capacité de dossiers atteinte. Contactez l’administrateur.", 409, "capacity_reached")
             timestamp = now()
             task = dict(id=str(uuid.uuid4()), **clean, status="new", created_at=timestamp, updated_at=timestamp, result=None, version=1)
             connection.execute("INSERT INTO tasks(id,body,idempotency_key,request_hash,created_at) VALUES (?,?,?,?,?)",
@@ -138,9 +153,17 @@ class Store:
         with self.connection() as connection:
             return self._get(connection, task_id)
 
-    def list(self):
+    def list(self, summaries=False):
         with self.connection() as connection:
-            return [json.loads(row["body"]) for row in connection.execute("SELECT body FROM tasks ORDER BY created_at DESC, rowid DESC")]
+            result = []
+            for row in connection.execute("SELECT body FROM tasks ORDER BY created_at DESC, rowid DESC"):
+                task = json.loads(row["body"])
+                if summaries:
+                    task.pop("payload", None)
+                    task.pop("result", None)
+                    task["summary_only"] = True
+                result.append(task)
+            return result
 
     def events(self, task_id=None, limit=None):
         query = "SELECT id,task_id,action,created_at,details FROM events"
@@ -156,6 +179,8 @@ class Store:
             return [dict(row, details=json.loads(row["details"])) for row in connection.execute(query, parameters)]
 
     def save_analysis(self, task_id, result, expected_version, status=None):
+        if self.max_result_bytes is not None and len(encoded(result).encode("utf-8")) > self.max_result_bytes:
+            raise AppError("Résultat trop volumineux. Répartissez les pièces en plusieurs petits dossiers avant de relancer l'analyse.", 413, "result_too_large")
         status = status or result_status(result)
         if status not in {"blocked", "needs_review"}:
             raise AppError("Statut d'analyse invalide.")

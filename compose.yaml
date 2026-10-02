@@ -1,0 +1,82 @@
+# One client per dedicated VM/IP. No app port is published to the host.
+services:
+  app:
+    image: ${APP_IMAGE:?Set APP_IMAGE in the client env file}
+    build: .
+    user: "${APP_UID:?}:${APP_GID:?}"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    stop_grace_period: 30s
+    environment:
+      ADMIN_AGENT_CLIENT_ID: ${CLIENT_ID:?}
+      ADMIN_AGENT_CLIENT_NAME: ${CLIENT_NAME:?}
+      ADMIN_AGENT_PUBLIC_ORIGIN: https://${DOMAIN:?}
+      ADMIN_AGENT_DB: /data/admin-agent.sqlite3
+      ADMIN_AGENT_SESSION_SECRET_FILE: /run/secrets/session_secret
+      ADMIN_AGENT_BIND: 0.0.0.0
+      ADMIN_AGENT_PORT: "8765"
+      ADMIN_AGENT_AI_ENABLED: "0"
+    secrets: [session_secret]
+    volumes:
+      - type: bind
+        source: ${CLIENT_DATA_DIR:?}
+        target: /data
+        bind:
+          create_host_path: false
+    tmpfs:
+      - /tmp:size=32m,mode=1777,noexec,nosuid,nodev
+    networks: [private]
+    healthcheck:
+      test: [CMD, python, -c, "import os,urllib.request;from urllib.parse import urlsplit;req=urllib.request.Request('http://127.0.0.1:8765/readyz',headers={'Host':urlsplit(os.environ['ADMIN_AGENT_PUBLIC_ORIGIN']).netloc});urllib.request.urlopen(req,timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  proxy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      DOMAIN: ${DOMAIN:?}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    tmpfs:
+      - /tmp:size=16m,mode=1777,noexec,nosuid,nodev
+    networks: [private, edge]
+    depends_on:
+      app: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+networks:
+  private: {internal: true}
+  edge: {}
+volumes:
+  caddy_data: {}
+  caddy_config: {}
+secrets:
+  session_secret:
+    file: ${SESSION_SECRET_PATH:?}

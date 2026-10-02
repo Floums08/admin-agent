@@ -2,6 +2,8 @@
 
 Mis à jour le 2 octobre 2026. Les rapports de recherche distinguent preuves publiques, recommandations et hypothèses commerciales.
 
+**Évolution de production :** un mode séparé prépare maintenant un service opéré, avec une instance dédiée par client, des comptes nominatifs, TOTP, des rôles et des outils de sauvegarde/reprise. Le [guide de lancement](launch/00-START-HERE.md) décrit les conditions réelles d'ouverture. La première release de production utilise seulement les contrôles déterministes : l'IA externe y est refusée. Elle est limitée à 100 dossiers cumulés par instance ; la capacité et le travail de saisie doivent être intégrés à l'offre. L'IA optionnelle décrite ci-dessous concerne les essais locaux.
+
 ## Le problème retenu
 Un dirigeant doit retrouver des pièces, vérifier des montants, répondre au comptable, suivre des créances et savoir ce qui manque avant une échéance. Le travail est réparti entre messagerie, fichiers et logiciels métier. Le produit prépare un dossier révisable, avec anomalies explicites et prochaine action interne.
 

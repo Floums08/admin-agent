@@ -1,4 +1,60 @@
-# Contrôle qualité — version initiale
+# Contrôle qualité — préparation de production
+
+Date : **2 octobre 2026**. Les vérifications utilisent exclusivement des entreprises, comptes et dossiers synthétiques. Aucun hébergement client ni fournisseur de sauvegarde réel n'a été provisionné ; aucun message client, paiement ou dépôt n'a été exécuté.
+
+## Résultats de cette livraison
+
+| Vérification réellement exécutée | Résultat et portée |
+|---|---|
+| Python 3.12.14, dépendances production installées | **104 méthodes de test réussies** : 62 existantes, 18 production, 13 opérations, 11 revue de sécurité indépendante |
+| DOM/API local | **12 parcours réussis** avec serveur local réel |
+| DOM authentification | **13 scénarios réussis**, transport simulé : rôles, CSRF, purge après expiration, refus des réponses tardives, communication de déconnexion entre onglets |
+| Chromium réel 131, Waitress réel, TLS local temporaire | **10 parcours réussis**, bureau 1280 px et mobile 390 px, création/analyse/revue/correction, MFA, permissions, révocation, absence d'erreur JS et de requête externe |
+| Sauvegarde chiffrée réelle restic 0.19.1 | Snapshot SQLite → dépôt local chiffré → contrôle complet des données → récupération → restauration en quarantaine, identifiants historiques inutilisables |
+| Audit des requirements Python via pip-audit 2.10.1 | Aucune vulnérabilité connue signalée au moment de l'exécution ; cela ne certifie pas l'absence de vulnérabilités |
+| Contrôles statiques | Syntaxe Python/JavaScript/shell, JSON d'intégration client, liens de documentation et diff vérifiés |
+
+Les 24 scénarios métier déterministes existants restent des sous-tests inclus dans les 62 méthodes initiales ; ils ne s'ajoutent pas aux 104. Les tests fournisseur IA restent simulés. Les captures navigateur synthétiques ont été inspectées et restent hors des fichiers publiés.
+
+## Corrections issues de la revue
+
+| Risque reproduit ou vérifié | Correction livrée |
+|---|---|
+| Ancien accès réactivé par une restauration | Désactivation des comptes, destruction des anciens moyens d'accès, renouvellement password + MFA avant réactivation |
+| Quota de pré-sessions empêchant la déconnexion | Révocation garantie même quand le renouvellement de pré-session échoue |
+| Deux connexions utilisant le même code TOTP simultanément | Consommation atomique du pas TOTP ; une seule connexion réussit |
+| Révocation pendant une écriture | Autorisation recontrôlée dans la transaction métier |
+| Réponse tardive ou autre onglet conservant un dossier après logout | Génération de session UI, purge des données et signal inter-onglets sans contenu métier |
+| Petit input générant un résultat et des listes démesurés | Résultat borné à 32 Kio, 100 dossiers maximum, listes compactes, export en flux, détail limité aux 200 derniers événements avec indication explicite |
+| Mauvais catalogue dans l'image | Dockerfile corrigé pour copier le fichier réellement lu |
+| Droits et frontières HTTP | Tests lecteur, origine/CSRF, cookie/session, Host/proxy, JSON dupliqué/invalide/trop volumineux et identité de base |
+| Tableau difficile à lire sur mobile | État du dossier rendu entièrement visible à 390 px ; dialogues et parcours revérifiés |
+
+La revue indépendante n'a pas observé d'autre blocage matériel dans ce périmètre de première instance isolée. Ce constat n'est pas un audit de sécurité exhaustif ni une certification.
+
+## CI et reproductibilité
+
+Le workflow [Production and local QA](../.github/workflows/qa.yml) installe les dépendances et rejoue les tests sur Python 3.11, 3.12 et 3.13. Il exécute les parcours DOM et Chromium, construit l'image Docker, vérifie le runtime non-root/lecture seule et les flux MFA/permissions sur le conteneur réel, valide Caddy/Compose et rejoue la restauration restic. Un job distinct audite les dépendances.
+
+**Le statut de référence est celui du commit concerné dans [GitHub Actions](https://github.com/Floums08/admin-agent/actions)**. Les tests Docker ne peuvent pas être exécutés dans l'environnement local de rédaction, qui ne fournit pas Docker ; ils sont confiés au runner GitHub. Le test navigateur local utilise un certificat autosigné accepté uniquement dans son contexte de test. Il ne prouve pas la validité d'un certificat public.
+
+Commandes : `python scripts/qa.py`, `npm run test:ui`, `npm run test:auth-ui`, `npm run test:browser`, `python scripts/container_smoke.py --image admin-agent:ci`, `PYTHON=python RESTIC_BINARY=restic sh tests/restic_smoke.sh`. Installer d'abord les dépendances indiquées dans le README. Ne pas interpréter des tests marqués skipped faute de dépendances comme une validation de production.
+
+## Vérifications encore propres à chaque client
+
+- Domaine/DNS, vrai certificat HTTPS, pare-feu, accès administrateurs, chiffrement des volumes et supervision sur l'hôte retenu.
+- Dépôt de sauvegarde réellement indépendant, credentials restreints, récupération des clés, restauration depuis cet emplacement et temps de reprise mesuré.
+- Accord de traitement, conservation, identité des personnes habilitées et recette métier sur un lot autorisé.
+- Absence d'OCR/import documentaire/connecteur réel dans cette version. L'IA externe est refusée en production ; aucune qualité réelle de modèle n'est certifiée.
+- Capacité initiale de 100 dossiers cumulés : pas de charge soutenue, haute disponibilité ou déploiement multi-tenant validés. Pas de séparation préparateur/relecteur imposée par le code.
+
+Le [dossier de décision de lancement](launch/06-GO-NO-GO.md) doit rassembler ces preuves. Le préflight conserve volontairement `launch_ready:false` : un contrôle technique ne signe pas le lancement du client.
+
+---
+
+Les éléments ci-dessous décrivent **la livraison locale antérieure** et ses limites à cette étape ; ils ne remplacent pas le bilan de production ci-dessus.
+
+# Historique — version locale initiale
 
 Date : **2 octobre 2026**. Environnement local : Python **3.12.14**, Node **24.19.0**, Linux. Les données utilisées sont synthétiques. Aucun client contacté, aucun e-mail envoyé, aucun paiement ni dépôt exécuté.
 

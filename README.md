@@ -4,6 +4,27 @@
 
 Premier socle développé le 2 octobre 2026, à partir d'une recherche France / Espagne / UE : **38 fonctions administratives, 36 références documentées, 12 skills et 6 familles de spécialistes**. Les recommandations et prix éventuels sont des hypothèses de validation, distinctes des faits sourcés.
 
+**Préparer un premier client : commencer par le [guide de lancement](docs/launch/00-START-HERE.md).** Le dépôt contient maintenant un mode production distinct, ses outils d'exploitation et un parcours d'intégration client. Une instance et une base sont dédiées à une seule entreprise. La publication du code ne signifie pas qu'un hébergement client est déployé ou que la recette de cet environnement est terminée.
+
+## Préparer le lancement en production
+
+Le [guide de déploiement](docs/launch/03-DEPLOIEMENT.md) détaille les commandes, dans l'ordre. Il s'adresse au responsable technique d'un serveur Linux dédié au client, avec Docker Compose, un domaine HTTPS et une destination de sauvegarde indépendante.
+
+| Livré dans le dépôt | Fonctionnement |
+|---|---|
+| Serveur de production | Flask + Waitress, derrière Caddy pour HTTPS ; aucun port applicatif public dans Compose |
+| Comptes nominatifs | Mot de passe haché + code TOTP obligatoire ; création et récupération via administration du serveur |
+| Permissions | Administrateur : dossiers et export ; opérateur : préparation et revue ; lecteur : consultation |
+| Protection des sessions | Cookies Secure/HttpOnly/SameSite, CSRF, expiration, révocation et limitation des tentatives |
+| Isolation | Identité client liée à la base ; refus d'une base appartenant à une autre instance |
+| Exploitation | Initialisation, contrôle préalable, sauvegarde SQLite cohérente, scripts restic chiffrés et restauration vers une nouvelle cible |
+| Reprise sûre | Comptes restaurés désactivés ; renouvellement du mot de passe et du MFA avant réactivation |
+| Contrôles | Tests métier, permissions, restauration, parcours navigateur et construction du conteneur dans la CI |
+
+La production de cette version utilise les **quatre workflows déterministes**. L'IA externe et les données de démonstration y sont désactivées. Les huit autres skills restent guidées. L'import PDF/OCR et les connecteurs réels restent hors périmètre. Le lancement initial est borné à **100 dossiers cumulés par instance**, avec des limites sur la taille des résultats et le nombre d'événements ; une capacité supérieure nécessite une évolution validée.
+
+Documents d'intégration : [qualification et informations à obtenir](docs/launch/01-QUALIFICATION-CLIENT.md), [données et responsabilités](docs/launch/02-DONNEES-ET-RESPONSABILITES.md), [recette client](docs/launch/04-RECETTE-CLIENT.md), [exploitation quotidienne et reprise](docs/launch/05-EXPLOITATION.md), [décision de lancement](docs/launch/06-GO-NO-GO.md). Le [formulaire fictif](examples/client-onboarding.example.json) est à compléter dans un espace privé, jamais dans ce dépôt public.
+
 ## Essayer en local — sans clé API
 
 Prérequis : **Python 3.11 ou plus récent**. Aucune bibliothèque Python à installer.
@@ -28,7 +49,7 @@ py -m admin_agent --port 8765
 7. Relire un résultat sans blocage et le valider en interne. Aucun message n'est envoyé.
 8. Exporter le suivi JSON si souhaité. Arrêter le serveur avec `Ctrl+C`.
 
-Le pilote écoute uniquement en local. Il ne doit pas être publié sur Internet ni partagé entre plusieurs entreprises. La publication GitHub porte sur le code, pas sur un SaaS opérationnel. Les dossiers sont persistés dans une base SQLite locale exclue du dépôt ; `--db /chemin/base.sqlite3` permet de choisir son emplacement.
+Ce mode de démonstration écoute uniquement en local. Il ne doit pas être publié sur Internet ni partagé entre plusieurs entreprises. Pour un client, utiliser exclusivement le mode production et son guide ci-dessus. Les dossiers locaux sont persistés dans une base SQLite exclue du dépôt ; `--db /chemin/base.sqlite3` permet de choisir son emplacement. Une base de démonstration contenant des dossiers ne peut pas être attribuée automatiquement à une instance de production.
 
 ## Ce qui est disponible
 
@@ -60,9 +81,9 @@ Les données sont saisies ou fournies sous forme JSON. **OCR, import PDF/images,
 
 Les skills sont versionnées sous `skills/` pour l'application et réutilisables dans un futur orchestrateur. Elles ne sont pas installées automatiquement dans le compte ChatGPT. Le catalogue décrit leurs entrées, sorties et état d'implémentation.
 
-## Activer l'avis IA facultatif
+## Tester l'avis IA facultatif en local
 
-Le mode local fonctionne sans dépense API. Pour tester le mode IA, configurer côté serveur `ADMIN_AGENT_AI_ENABLED=1`, `OPENAI_API_KEY` et `OPENAI_MODEL` avec un modèle accessible au compte et compatible Responses / Structured Outputs. Le fichier `.env.example` documente ces variables ; l'application ne charge pas automatiquement `.env`.
+Le mode local fonctionne sans dépense API. Pour tester le mode IA local, configurer côté serveur `ADMIN_AGENT_AI_ENABLED=1`, `OPENAI_API_KEY` et `OPENAI_MODEL` avec un modèle accessible au compte et compatible Responses / Structured Outputs. Le fichier `.env.example` documente ces variables ; l'application locale ne charge pas automatiquement `.env`. **Le serveur de production refuse cette activation dans cette release.**
 
 Ne saisir la clé ni dans le navigateur ni dans un dossier. Après redémarrage, choisir explicitement l'analyse IA du dossier. Son contenu est alors transmis à OpenAI. Utiliser des données synthétiques tant que le cadre de traitement des données réelles n'est pas validé. L'avis IA reste séparé des contrôles déterministes et ne peut approuver un dossier.
 
@@ -81,11 +102,16 @@ Le contexte comprend uniquement la skill sélectionnée, le pays et le dossier c
 ## Développer et vérifier
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-production.txt
 python3 scripts/qa.py
 ```
 
-La commande contrôle le catalogue et lance tous les tests Python. Si Node est installé, elle vérifie aussi la syntaxe du JavaScript. Aucun compte externe n'est nécessaire. La CI utilise Python 3.11, 3.12 et 3.13 ; le rapport QA distingue les versions réellement exécutées localement.
+La commande contrôle le catalogue et lance les tests Python, y compris les scénarios de production lorsque leurs dépendances sont installées. Si Node est installé, elle vérifie aussi la syntaxe du JavaScript. Aucun compte externe n'est nécessaire pour ces tests. La CI utilise Python 3.11, 3.12 et 3.13 ; le rapport QA distingue les vérifications effectivement exécutées. Les bibliothèques Python sont nécessaires au mode production et à sa QA, pas à la démonstration locale.
 
-Pour les tests de parcours DOM/API supplémentaires (Node 24 utilisé lors de la validation) : `npm ci --ignore-scripts`, puis `npm run test:ui`. Cette dépendance sert uniquement au développement ; elle n'est pas nécessaire pour utiliser l'application. Ces tests ne remplacent pas une vérification visuelle dans un navigateur.
+Pour les parcours DOM/API : `npm ci --ignore-scripts`, puis `npm run test:ui` et `npm run test:auth-ui`. Pour le navigateur réel : `npx playwright install --with-deps chromium`, puis `npm run test:browser` (Python de l'environnement virtuel actif). Le test crée ses propres données et certificats TLS temporaires. Ces dépendances npm servent uniquement à la QA ; l'application n'en charge aucune dans le navigateur.
+
+La CI construit aussi l'image Docker et exécute `python scripts/container_smoke.py --image admin-agent:ci`. Un audit des dépendances Python interroge la base publique d'avis de sécurité ; cela ne remplace pas la maintenance du système hôte, des images ni une revue de sécurité de l'environnement déployé.
 
 Lire [AGENTS.md](AGENTS.md) pour la boucle développement → test → QA → contrôle → amélioration. Les cas de compétences sous `data/skill-evals.json` décrivent également des évaluations métier ; un scénario documentaire n'est pas à lui seul un test exécuté ni une certification juridique.

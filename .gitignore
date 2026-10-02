@@ -9,3 +9,10 @@ __pycache__/
 node_modules/
 artifacts/
 .DS_Store
+runtime/
+secrets/
+.backup.env
+*.pem
+*.key
+*.crt
+.pytest_cache/

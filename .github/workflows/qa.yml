@@ -1,4 +1,4 @@
-name: Offline QA
+name: Production and local QA
 on:
   push:
   pull_request:
@@ -16,6 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --requirement requirements-production.txt
       - name: Run deterministic checks and regression tests
         run: python scripts/qa.py
   ui:
@@ -30,5 +31,45 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: python -m pip install --requirement requirements-production.txt
       - name: Run DOM and real local API scenarios
         run: npm run test:ui
+      - name: Run authentication and permission DOM scenarios
+        run: npm run test:auth-ui
+      - run: npx playwright install --with-deps chromium
+      - name: Run desktop and mobile browser scenarios with local TLS
+        run: npm run test:browser
+  production-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --requirement requirements-production.txt
+      - name: Check operations shell scripts
+        run: bash -n deploy/backup.sh deploy/restore-drill.sh
+      - name: Validate isolated-client Compose configuration
+        run: |
+          python -m admin_agent.ops init-client --client-id ci-demo --domain admin-ci.example.test --directory /tmp/admin-agent-compose-client
+          docker compose --env-file /tmp/admin-agent-compose-client/client.env config --quiet
+      - name: Build exact production image
+        run: docker build --tag admin-agent:ci .
+      - name: Run real image and authentication smoke
+        run: python scripts/container_smoke.py --image admin-agent:ci
+      - name: Validate the TLS proxy configuration
+        run: docker compose --env-file /tmp/admin-agent-compose-client/client.env run --rm --no-deps proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Install restoration test dependency
+        run: sudo apt-get update && sudo apt-get install --yes restic
+      - name: Exercise encrypted snapshot restoration with synthetic data
+        run: PYTHON=python RESTIC_BINARY=restic sh tests/restic_smoke.sh
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pip-audit==2.10.1
+      - name: Audit pinned Python production dependencies
+        run: python -m pip_audit --requirement requirements-production.txt --strict
