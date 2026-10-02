@@ -31,6 +31,8 @@ Interface : **12 parcours DOM/API**, **13 scénarios DOM d'authentification**, *
 | Solde restant accepté sans rapprochement ; paiement partiel importé retiré du formulaire | Champs de solde bloquants et vérification du snapshot importé immuable avant préparation financière |
 | Texte de demande triée ignoré quand envoyé uniquement par payload | Moteur lisant explicitement la demande vérifiée avec le contexte séparé |
 | Temporaire trop petit pour les doubles tampons d'upload concurrents | Connexions Waitress ramenées à huit, tmpfs applicatif à 128 Mio ; pas de certification de charge soutenue |
+| Premier smoke Docker supposant un port publié sur un réseau interne | Test depuis l'hôte Linux vers l'adresse privée du bridge ; application et OCR gardés sans port publié |
+| OCR en CI bloqué par les threads Chromium du même UID | Cause reproduite sous UID non privilégié avec 90 threads : RLIMIT_NPROC produisait EAGAIN. Suppression de cette limite globale à l'UID ; limite de 64 tâches maintenue par le cgroup du conteneur OCR, limites CPU/mémoire/fichiers/délai inchangées |
 
 ## Limites qui restent à qualifier
 

@@ -67,7 +67,9 @@ def _run(tool: str, args: list[str], directory: Path, deadline: float) -> bytes:
     if sys.platform.startswith("linux"):
         if not TOOLS["prlimit"].is_file():
             raise OCRError("ocr_unavailable", "Les limites de processus OCR sont indisponibles.", 503)
-        command = [str(TOOLS["prlimit"]), "--as=1073741824", "--cpu=55", "--fsize=33554432", "--nofile=64", "--nproc=64", "--", *command]
+        # The worker's Docker cgroup caps the service at 64 PIDs. RLIMIT_NPROC
+        # counts every thread sharing the host UID (including unrelated browsers).
+        command = [str(TOOLS["prlimit"]), "--as=1073741824", "--cpu=55", "--fsize=33554432", "--nofile=64", "--", *command]
     env = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "OMP_THREAD_LIMIT": "1", "TMPDIR": str(directory)}
     model_directory = os.environ.get("ADMIN_AGENT_OCR_TESSDATA_DIR")
     if tool == "tesseract" and model_directory:

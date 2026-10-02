@@ -21,7 +21,9 @@ def _isolated_extract(data, media, language, force):
     if sys.platform.startswith("linux"):
         if not TOOLS["prlimit"].is_file():
             raise OCRError("ocr_unavailable", "Les limites de processus OCR sont indisponibles.", 503)
-        command = [str(TOOLS["prlimit"]), "--as=1073741824", "--cpu=55", "--fsize=33554432", "--nofile=64", "--nproc=64", "--", *command]
+        # PID limits belong to the isolated service's Docker cgroup, not to a
+        # host UID that may also run Chromium or other unrelated processes.
+        command = [str(TOOLS["prlimit"]), "--as=1073741824", "--cpu=55", "--fsize=33554432", "--nofile=64", "--", *command]
     env = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "OMP_THREAD_LIMIT": "1", "PYTHONDONTWRITEBYTECODE": "1"}
     if os.environ.get("ADMIN_AGENT_OCR_TESSDATA_DIR"):
         env["ADMIN_AGENT_OCR_TESSDATA_DIR"] = os.environ["ADMIN_AGENT_OCR_TESSDATA_DIR"]

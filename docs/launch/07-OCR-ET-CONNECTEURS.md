@@ -64,6 +64,8 @@ Le [guide principal de déploiement](03-DEPLOIEMENT.md) construit les deux image
 
 Les temporaires du worker sont retirés après traitement ; un redémarrage supprime aussi le contenu de son `tmpfs`. Protéger le swap de l'hôte selon la procédure de déploiement. L'isolation réduit les conséquences d'une pièce malformée mais ne remplace pas les mises à jour de sécurité des moteurs de parsing.
 
+La limite de 64 tâches appartient au cgroup Docker du service, pas à l'ensemble des processus du même utilisateur sur l'hôte. Les commandes locales de développement ne reproduisent pas cette isolation : le lancement client doit conserver le conteneur et ses limites Compose.
+
 `GET /health` est un signal de vie ; la recette doit également réussir une extraction de chaque format/langue retenu. Le port n'a pas d'authentification destinée à Internet : ne pas le publier et ne pas le connecter à un réseau partagé avec d'autres applications. La CLI et le serveur de démonstration restent utilisables sans moteur OCR ; cette option ne rend pas le serveur de démonstration publiable.
 
 Relever `/app/ocr-packages.txt`, le digest et les notices de l'image. Les versions Debian se résolvent au build depuis les dépôts maintenus ; le digest et le manifeste identifient le résultat exact. Lors d'une reconstruction pour correctifs, rejouer les tests OCR puis le lot client, avec mesure de temps et comparaison des champs critiques. Voir [les notices tierces](../../THIRD-PARTY-NOTICES.md).

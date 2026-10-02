@@ -93,7 +93,6 @@ def main():
                '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges:true',
                '--pids-limit=128', '--tmpfs', '/tmp:rw,noexec,nosuid,nodev,size=128m',
                '--user', f"{config['uid']}:{config['gid']}",
-               '-p', '127.0.0.1::8765',
                '-v', f'{directory / "data"}:/data',
                '-v', f'{directory / "secrets/session_secret"}:/run/secrets/session_secret:ro']
         env = {'ADMIN_AGENT_CLIENT_ID': 'ci-demo', 'ADMIN_AGENT_CLIENT_NAME': 'Client synthétique CI',
@@ -106,8 +105,15 @@ def main():
         run.append(args.image)
         command(*run)
         started = True
-        port = command('docker', 'port', name, '8765/tcp').rsplit(':', 1)[1]
-        address = 'http://127.0.0.1:' + port
+        # The Linux runner can reach its bridge directly. Internal networks do
+        # not need (and may suppress) published ports. Keep app and worker private.
+        runtime = json.loads(command('docker', 'inspect', name))[0]
+        assert runtime['State']['Running'], 'Application container stopped during startup'
+        app_ip = runtime['NetworkSettings']['Networks'][network_name]['IPAddress']
+        assert app_ip, 'Application has no internal bridge address'
+        assert not runtime['HostConfig']['PortBindings']
+        address = 'http://' + app_ip + ':8765'
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
         def request(path, method='GET', body=None, cookie=None, csrf=None, expected=200,
                     content_type='application/json', binary_response=False):
@@ -119,7 +125,7 @@ def main():
             data = None if body is None else body if isinstance(body, bytes) else json.dumps(body).encode()
             req = urllib.request.Request(address + path, data=data, headers=headers, method=method)
             try:
-                response = urllib.request.urlopen(req, timeout=75)
+                response = opener.open(req, timeout=75)
             except urllib.error.HTTPError as error:
                 response = error
             with response:
@@ -230,6 +236,11 @@ def main():
         request('/api/logout', 'POST', {}, cookie, csrf)
         request('/api/tasks', cookie=cookie, expected=401)
         print('Production and OCR images: isolated internal network, non-root/read-only runtime, bounded worker, health/readiness, mandatory MFA, CSRF, named roles, dossier analysis, export, real PNG OCR, original integrity, human confirmation, idempotency and logout passed.')
+    except Exception:
+        for container, active in ((name, started), (worker_name, worker_started)):
+            if active:
+                subprocess.run(['docker', 'logs', '--tail', '60', container], check=False)
+        raise
     finally:
         if started:
             subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)

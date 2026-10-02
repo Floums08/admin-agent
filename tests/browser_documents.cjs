@@ -1,6 +1,6 @@
 /* Real Chromium against the production WSGI server behind a temporary local TLS proxy.
  * Synthetic users/data only. The self-signed certificate is accepted ONLY in this test context.
- * Run: npm ci && npx playwright install chromium && npm run test:browser
+ * Run: npm ci && npx playwright install chromium && npm run test:documents-browser
  * PYTHON selects an interpreter with requirements installed; CHROMIUM_EXECUTABLE is optional.
  */
 'use strict';
@@ -25,10 +25,73 @@ const password = crypto.randomBytes(24).toString('base64url');
 const secret = crypto.randomBytes(32).toString('hex');
 const clientName = 'Atelier QA — entreprise fictive';
 const hostname = '127.0.0.1';
-let server, worker, proxy, browser, origin, environment, serverOutput = '', count = 0;
+let server, worker, proxy, browser, origin, environment, serverOutput = '', workerOutput = '', count = 0;
+let diagnosticDocumentId=null, stage='initialization';
+const httpDiagnostics=[];
+const redactions=[password,secret];
 const javascriptErrors = [];
 const unexpectedRequests = [];
 function passed(label) { count++; console.log(`PASS ${count}: ${label}`); }
+function redact(value) {
+  let text=String(value ?? '');
+  for(const sensitive of redactions)if(sensitive)text=text.split(sensitive).join('[redacted]');
+  return text.split('\n').map(line=>/authorization|set-cookie|csrf[_-]?token|totp[_-]?secret|api[_-]?key|password|session[_-]?secret/i.test(line)?'[redacted sensitive log line]':line).join('\n');
+}
+function documentSummary(document) {
+  if(!document)return null;
+  return {id:document.id,status:document.status,extraction_version:document.extraction_version,last_error:document.last_error,
+    linked_task:Boolean(document.task_id),size_bytes:document.size_bytes,media_type:document.media_type,
+    extraction:document.extraction?{page_count:document.extraction.pages?.length,
+      methods:document.extraction.pages?.map(page=>page.method),candidate_fields:Object.keys(document.extraction.candidates||{}),
+      review_required:document.extraction.review_required}:null};
+}
+async function extractThroughUI(page, documentId, label) {
+  stage=label;
+  const [response]=await Promise.all([
+    page.waitForResponse(response=>{const url=new URL(response.url());return url.origin===origin&&url.pathname===`/api/documents/${documentId}/extract`&&response.request().method()==='POST';},{timeout:70000}),
+    page.locator('#document-extract-button').click()
+  ]);
+  const body=await response.json().catch(()=>null);
+  const summary={stage:label,status:response.status(),error:body?.error?{code:body.error.code,message:body.error.message}:null,document:documentSummary(body?.document)};
+  // Never wait 70 seconds for a field that cannot appear after a known HTTP refusal.
+  assert.equal(response.status(),200,redact(JSON.stringify(summary)));
+  assert.ok(body?.document?.extraction,redact(JSON.stringify(summary)));
+  await page.locator('[data-document-field="invoice_number"]').waitFor({timeout:10000});
+  await page.waitForFunction(()=>{const button=document.querySelector('#document-extract-button');return button&&!button.disabled;},null,{timeout:10000});
+  return body.document;
+}
+async function failureDiagnostics() {
+  const details={stage,http:httpDiagnostics.slice(-30),javascriptErrors,unexpectedRequests,
+    processes:{server:{pid:server?.pid,exitCode:server?.exitCode,signal:server?.signalCode},worker:{pid:worker?.pid,exitCode:worker?.exitCode,signal:worker?.signalCode}},
+    server_log:redact(serverOutput.slice(-8000)),worker_log:redact(workerOutput.slice(-8000)),pages:[]};
+  if(browser)for(const page of browser.contexts().flatMap(context=>context.pages())){
+    try{
+      const info=await page.evaluate(async documentId=>{
+        const errors=['document-upload-error','document-action-error','document-create-error','login-error'].map(id=>({id,text:document.querySelector('#'+id)?.textContent?.slice(0,500)||''})).filter(item=>item.text);
+        const response=await fetch(documentId?'/api/documents/'+documentId:'/api/documents');
+        const body=await response.json().catch(()=>null);
+        return {errors,status:response.status,error:body?.error,document:body?.document,
+          documents:body?.documents?.map(document=>({id:document.id,status:document.status,extraction_version:document.extraction_version,last_error:document.last_error}))};
+      },diagnosticDocumentId);
+      if(info.document)info.document=documentSummary(info.document);
+      details.pages.push(info);
+    }catch(error){details.pages.push({diagnostic_error:redact(error.message).slice(0,300)});}
+  }
+  try {
+    details.runtime=JSON.parse(runPython(`import json,os,sys,resource
+from pathlib import Path
+uid=os.getuid();processes=threads=0
+for status in Path('/proc').glob('[0-9]*/status'):
+ try:
+  fields={line.split(':',1)[0]:line.split(':',1)[1].strip() for line in status.read_text().splitlines() if ':' in line}
+  if int(fields.get('Uid','-1').split()[0])==uid: processes+=1;threads+=int(fields.get('Threads','0'))
+ except (OSError,ValueError): pass
+print(json.dumps({'python':sys.version.split()[0],'uid':uid,'same_uid_processes':processes,'same_uid_threads':threads,'inherited_nproc':list(resource.getrlimit(resource.RLIMIT_NPROC)),'inherited_nofile':list(resource.getrlimit(resource.RLIMIT_NOFILE))}))`));
+  }catch(error){details.runtime={diagnostic_error:redact(error.message).slice(0,300)};}
+  const output=redact(JSON.stringify(details,null,2));
+  fs.writeFileSync(path.join(artifacts,'failure-diagnostics.json'),output+'\n');
+  console.error('DOCUMENT BROWSER DIAGNOSTICS\n'+output);
+}
 function runPython(source, input = '') {
   return execFileSync(python, ['-c', source], {cwd:root, env:environment || process.env, input, encoding:'utf8', maxBuffer:1024*1024}).trim();
 }
@@ -73,7 +136,8 @@ async function request(page, route, body) {
 async function signIn(page, user, code) {
   await page.locator('#login-username').fill(user.username);
   await page.locator('#login-password').fill(password);
-  await page.locator('#login-otp').fill(code || otp(user.totp_secret));
+  const otpValue=code || otp(user.totp_secret);redactions.push(otpValue);
+  await page.locator('#login-otp').fill(otpValue);
   await page.locator('#login-form button[type=submit]').click();
 }
 async function contextPage(viewport) {
@@ -84,7 +148,18 @@ async function contextPage(viewport) {
     return route.continue();
   });
   const page=await context.newPage();
-  page.on('pageerror',error=>javascriptErrors.push(error.message));
+  page.on('pageerror',error=>javascriptErrors.push(redact(error.message)));
+  page.on('response',response=>{
+    const url=new URL(response.url());
+    if(url.origin===origin&&url.pathname.startsWith('/api/documents')){
+      httpDiagnostics.push({method:response.request().method(),path:url.pathname,status:response.status()});
+      if(httpDiagnostics.length>50)httpDiagnostics.shift();
+    }
+  });
+  page.on('requestfailed',request=>{
+    const url=new URL(request.url());
+    if(url.origin===origin&&url.pathname.startsWith('/api/documents'))httpDiagnostics.push({method:request.method(),path:url.pathname,failed:request.failure()?.errorText});
+  });
   await page.goto(origin,{waitUntil:'networkidle'});
   await page.locator('#login-form').waitFor();
   return {context,page};
@@ -111,12 +186,12 @@ function syntheticPDF() {
 async function waitForWorker(port) {
   const end=Date.now()+15000;
   while(Date.now()<end){
-    if(worker.exitCode!==null)throw new Error('OCR worker exited: '+serverOutput);
+    if(worker.exitCode!==null)throw new Error('OCR worker exited: '+redact(workerOutput));
     const ready=await new Promise(resolve=>{const req=http.get({hostname:'127.0.0.1',port,path:'/health'},res=>{res.resume();resolve(res.statusCode===200);});req.on('error',()=>resolve(false));});
     if(ready)return;
     await new Promise(resolve=>setTimeout(resolve,100));
   }
-  throw new Error('OCR worker did not become ready: '+serverOutput);
+  throw new Error('OCR worker did not become ready: '+redact(workerOutput));
 }
 
 (async()=>{
@@ -142,8 +217,9 @@ from admin_agent.auth import AuthStore
 auth=AuthStore(Store(os.environ['ADMIN_AGENT_DB']),os.environ['ADMIN_AGENT_CLIENT_ID'],os.environ['ADMIN_AGENT_CLIENT_NAME'],Path(os.environ['ADMIN_AGENT_SESSION_SECRET_FILE']).read_bytes())
 password=sys.stdin.read()
 print(json.dumps({role:auth.provision_user('documents-'+role,password,role) for role in ['operator','reader']}))`,password));
+  for(const user of Object.values(users))redactions.push(user.totp_secret);
   worker=spawn(python,['-m','admin_agent.ocr_worker','--host','127.0.0.1','--port',String(workerPort)],{cwd:root,env:environment,stdio:['ignore','pipe','pipe']});
-  worker.stdout.on('data',chunk=>{serverOutput=(serverOutput+chunk).slice(-12000);});worker.stderr.on('data',chunk=>{serverOutput=(serverOutput+chunk).slice(-12000);});
+  worker.stdout.on('data',chunk=>{workerOutput=(workerOutput+chunk).slice(-12000);});worker.stderr.on('data',chunk=>{workerOutput=(workerOutput+chunk).slice(-12000);});
   await waitForWorker(workerPort);
   // The only OCR destination override is inside this isolated test process.
   // The production environment never accepts a configurable arbitrary OCR URL.
@@ -165,20 +241,19 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   assert.equal((await request(page,'/api/documents')).status,401);
   await signIn(page,users.operator);await page.locator('.metric-card').first().waitFor();
   assert.equal((await session(page)).capabilities.documents_upload,true);
+  stage='document upload';
   await page.locator('.nav-link[data-page=documents]').click();
   await page.locator('#document-file').setInputFiles(pdfPath);
   await page.locator('#document-upload-form button[type=submit]').click();
   await page.locator('#document-dialog[open]').waitFor();
   let documents=(await request(page,'/api/documents')).data.documents;
-  assert.equal(documents.length,1);let doc=documents[0];
+  assert.equal(documents.length,1);let doc=documents[0];diagnosticDocumentId=doc.id;
   assert.equal(doc.sha256,crypto.createHash('sha256').update(original).digest('hex'));
   assert.equal((await request(page,'/api/tasks')).data.tasks.length,0);
   passed('Authenticated PDF upload persists original/hash, with no automatic extraction or task creation');
 
   await page.locator('#document-language').selectOption('eng');
-  await page.locator('#document-extract-button').click();
-  await page.locator('[data-document-field="invoice_number"]').waitFor({timeout:70000});
-  let extracted=(await request(page,'/api/documents/'+doc.id)).data.document;
+  let extracted=await extractThroughUI(page,doc.id,'native document extraction');
   assert.equal(extracted.extraction.pages.length,2);assert.equal(extracted.extraction.pages[0].method,'native');
   assert.equal(extracted.extraction.candidates.total_amount.value,'120.00');
   assert.equal(extracted.extraction.candidates.total_amount.page,1);
@@ -188,14 +263,14 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   await screenshot(page,'document-native-desktop');
   passed('Native PDF extraction presents two pages and sourced amount proposals awaiting individual verification');
 
-  await page.locator('#document-force-ocr').check();await page.locator('#document-extract-button').click();
-  await page.waitForFunction(()=>!document.querySelector('#document-extract-button')?.disabled,{},{timeout:70000});
-  extracted=(await request(page,'/api/documents/'+doc.id)).data.document;
+  await page.locator('#document-force-ocr').check();
+  extracted=await extractThroughUI(page,doc.id,'forced document OCR');
   assert.ok(extracted.extraction.pages.every(p=>p.method==='ocr'));
   assert.ok(extracted.extraction_version>=2);
   assert.equal(await page.locator('#document-verify-total_amount').isChecked(),false);
   passed('Forced OCR invokes real Tesseract and invalidates prior field confirmations');
 
+  stage='individual field confirmation';
   await page.locator('#document-country').selectOption('FR');
   await page.locator('#document-human-verified').check();
   await page.locator('#document-create-form button[type=submit]').click();
@@ -234,6 +309,7 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   await screenshot(page,'document-task-mobile');
   passed('Confirmed extraction creates a new unreviewed task with immutable source provenance; mobile dialog fits');
 
+  stage='original source download';
   await page.locator('#detail-dialog [data-action=document-open]').click();
   await page.locator('#document-dialog[open]').waitFor();
   assert.equal(await page.locator('#detail-dialog[open]').count(),0);
@@ -243,6 +319,7 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   assert.equal(downloaded.status,200);assert.match(downloaded.disposition,/attachment/);assert.deepEqual(Buffer.from(downloaded.bytes),original);
   passed('Task source opens its original; real UI download is byte-identical and attachment-only');
 
+  stage='reader permissions';
   const {context:readerContext,page:reader}=await contextPage({width:390,height:844});
   await signIn(reader,users.reader);await reader.locator('.metric-card').first().waitFor();
   await reader.locator('.nav-link[data-page=documents]').click();
@@ -252,6 +329,7 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   assert.equal((await request(reader,'/api/documents/'+doc.id+'/create-task',{})).status,403);
   await noHorizontalPageOverflow(reader,'Documents reader mobile');await screenshot(reader,'document-reader-mobile');
   await reader.locator('.document-title-button').click();await reader.locator('#document-dialog[open]').waitFor();
+  await reader.locator('.document-page').first().waitFor({timeout:10000});
   assert.equal(await reader.locator('#document-extract-form,#document-create-form').count(),0);
   assert.equal(await reader.locator('.document-page').count(),2);
   passed('Reader can consult source documents but cannot upload, extract or create a task');
@@ -260,7 +338,8 @@ serve(app,host='127.0.0.1',port=${backendPort},threads=4,url_scheme='https',max_
   await readerContext.close();await context.close();
   console.log(`${count} document browser scenarios passed. Synthetic screenshots: ${artifacts}`);
 })().catch(async error=>{
-  console.error(error.stack);process.exitCode=1;
+  console.error(redact(error.stack));process.exitCode=1;
+  try{await failureDiagnostics();}catch(diagnosticError){console.error('Diagnostic collection failed: '+redact(diagnosticError.message));}
   if(browser)for(const [index,page]of browser.contexts().flatMap(context=>context.pages()).entries()){try{await screenshot(page,'failure-'+index);}catch{}}
 }).finally(async()=>{
   if(browser)await browser.close();
