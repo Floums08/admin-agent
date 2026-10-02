@@ -22,6 +22,7 @@ services:
       ADMIN_AGENT_BIND: 0.0.0.0
       ADMIN_AGENT_PORT: "8765"
       ADMIN_AGENT_AI_ENABLED: "0"
+      ADMIN_AGENT_OCR_URL: http://ocr:8766
     secrets: [session_secret]
     volumes:
       - type: bind
@@ -30,10 +31,43 @@ services:
         bind:
           create_host_path: false
     tmpfs:
-      - /tmp:size=32m,mode=1777,noexec,nosuid,nodev
-    networks: [private]
+      - /tmp:size=128m,mode=1777,noexec,nosuid,nodev
+    networks: [private, documents]
+    depends_on:
+      ocr: {condition: service_healthy}
     healthcheck:
       test: [CMD, python, -c, "import os,urllib.request;from urllib.parse import urlsplit;req=urllib.request.Request('http://127.0.0.1:8765/readyz',headers={'Host':urlsplit(os.environ['ADMIN_AGENT_PUBLIC_ORIGIN']).netloc});urllib.request.urlopen(req,timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  ocr:
+    image: ${OCR_IMAGE:-admin-agent-ocr:local}
+    build:
+      context: .
+      dockerfile: Dockerfile.ocr
+    user: "10002:10002"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 768m
+    cpus: 1.0
+    stop_grace_period: 15s
+    environment:
+      OMP_THREAD_LIMIT: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    tmpfs:
+      - /tmp:size=128m,mode=1777,noexec,nosuid,nodev
+    # No public ports, persistent mounts, credentials or Internet-capable network.
+    networks: [documents]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8766/health',timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -73,6 +107,7 @@ services:
       options: {max-size: 10m, max-file: "3"}
 networks:
   private: {internal: true}
+  documents: {internal: true}
   edge: {}
 volumes:
   caddy_data: {}

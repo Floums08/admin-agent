@@ -42,8 +42,8 @@ Le prestataire n'a pas besoin des identifiants de banque, du certificat fiscal, 
 
 1. Le client conserve les originaux dans son espace documentaire autorisé. Il donne l'accès minimal nécessaire aux opérateurs ou fournit un lot dans un espace de transfert sécurisé choisi contractuellement.
 2. L'opérateur vérifie qu'il s'agit de la bonne entreprise et de la bonne période. Il relève une référence stable, la date de consultation et le logiciel source. Ne pas utiliser un lien public ou une URL comportant un jeton d'accès.
-3. L'opérateur saisit les champs nécessaires dans le formulaire. Les données structurées avancées peuvent être fournies comme JSON dans le formulaire du workflow correspondant ; il n'existe pas d'import global du dossier de qualification ni d'OCR.
-4. La description indique, par exemple, `Source : FACT-2026-014, dossier client factures/2026-09 ; vérifié le AAAA-MM-JJ par opérateur ; statut de paiement fourni par responsable le AAAA-MM-JJ`. Cette traçabilité est déclarative : l'application ne télécharge ni ne certifie la pièce.
+3. L'opérateur importe une pièce PDF/PNG/JPEG dans l'espace Documents, vérifie le texte et les propositions par rapport à chaque page, puis confirme les champs avant de créer un dossier. La saisie manuelle et le formulaire JSON restent disponibles. Il n'existe pas d'import global du dossier de qualification. Pour un lot issu d'une source existante, suivre le [guide OCR et connecteurs](07-OCR-ET-CONNECTEURS.md).
+4. L'import conserve une copie, une empreinte et les références de page. Pour une saisie manuelle, la description indique, par exemple, `Source : FACT-2026-014, dossier client factures/2026-09 ; vérifié le AAAA-MM-JJ par opérateur ; statut de paiement fourni par responsable le AAAA-MM-JJ`. Une empreinte ou une extraction ne certifie ni l'authenticité de la pièce ni le statut de paiement.
 5. Un statut de paiement inconnu reste inconnu. Ne pas saisir `false` simplement pour obtenir un brouillon. Un paiement partiel, un litige ou une modification bancaire bloque le traitement standard.
 6. Le relecteur compare au document original avant approbation interne. Le client ou le professionnel réalise toute action réelle dans son propre outil.
 
@@ -65,3 +65,5 @@ Ne pas coller des données RH sensibles dans la description d'un tri. Une mentio
 Documenter le temps manuel de départ, la cadence, le nombre de dossiers inclus et le coût humain. Un seuil proposé doit être approuvé après observation. Exemple de tableau à compléter : `volume mensuel`, `minutes avant`, `minutes saisie+revue+correction`, `erreurs critiques`, `dossiers incomplets`, `délai médian`, `coût d'exploitation`, `marge après temps opérateur`.
 
 Une signature commerciale n'autorise pas un nouveau type de traitement. Tout ajout de processus, pays, données sensibles, connecteur ou fournisseur doit repasser par le cadrage, la revue des données et une recette ciblée.
+
+Pour la collecte documentaire, relever aussi : nombre et taille des fichiers, pages, langues, qualité de scan, présence de manuscrit, formats réellement fournis, source documentaire faisant foi, droits de lecture et durée des copies de travail. Pour Nextcloud ou Dolibarr, obtenir l'URL de l'instance et le responsable de création d'un compte technique limité. Ne pas recueillir sa clé dans ce formulaire : la configurer uniquement dans le fichier privé prévu.

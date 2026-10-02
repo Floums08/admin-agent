@@ -14,6 +14,17 @@ Two modes: a loopback-only local demonstration (Python 3.11+ standard library) a
 - Unauthorized access returns 401; role/Origin/CSRF refusals return 403; quota/refusal errors remain explicit. The server rechecks mutation authorization inside the write transaction.
 - See `docs/ARCHITECTURE.md` for session expiration, logging retention, isolated-instance and restore semantics.
 
+## Production document API and import boundary
+
+- GET `/api/documents` -> `{documents,enabled,ocr_enabled,limits}`; summaries omit binary content and full extractions.
+- POST `/api/documents`: multipart with exactly one `file` and optional `language` (`eng`, `fra`, `spa`, `fra+spa+eng`); maximum 5 MiB file / 6 MiB envelope. Returns `{document,created}` with 201 or existing 200. Upload never starts OCR or creates a task.
+- GET `/api/documents/:uuid` -> `{document}` with extraction and source references. GET `.../original` downloads the authenticated attachment with `nosniff` and `no-store`.
+- POST `.../extract` `{language,force_ocr}` -> `{document}` with versioned pages, word boxes, candidates and warnings. Only configured fixed internal worker; no arbitrary endpoint. One active worker extraction, 60-second budget, maximum 5 pages.
+- POST `.../create-task` `{title,description,skill_id,country,payload,extraction_version,human_verified:true,verified_fields:[...]}` requires current successful extraction and confirmation of every retained field. Allowed skills: invoice-check, receivables-followup, admin-triage. Creates a new, unanalyzed task and immutable source linkage atomically; identical retry returns existing result.
+- All document routes require authentication; writes require operator/admin, exact Origin and CSRF. Reader can inspect/download only. Originals, revisions and linkage share the client SQLite backup. Global JSON task export excludes original bytes.
+- `_document_source` and `_connector_source` are reserved provenance; HTTP creation cannot forge them and edits preserve the original evidence. Reviewed-document edits record changed fields and invalidate business analysis/review as usual.
+- Host-only connector CLI supports local folder, mapped CSV, Nextcloud/WebDAV and Dolibarr REST. Preview is the default. Explicit import creates only local unreviewed records, retains source hashes and refuses changed-source conflicts. No remote mutation, scheduling, mail, private-network endpoint or live account certification.
+
 ## Shared business API (full local task representations below)
 - GET /api/health -> {status, mode, outbound_enabled:false}
 - GET /api/dashboard -> {metrics:{total,needs_review,blocked,ready},tasks:[Task],recent_events:[],mode}
@@ -33,8 +44,8 @@ Catalog: data/skills.json {skills:[{id,name,description,priority:'P0'|'P1'|'P2',
 
 Core implemented ids: invoice-check, receivables-followup, bookkeeping-pack, admin-triage. Guided: expense-review, deadline-watch, supplier-watch, contract-watch, hr-onboarding, compliance-watch, cash-visibility, weekly-brief. Backend loads catalog. Result statuses: blocked for missing mandatory fields/errors; needs_review when complete; ready only after human approval with no blockers. No frontend-only security promises.
 
-Invoice payload: invoice_number,supplier,customer,issue_date (ISO date),due_date,net_amount,vat_rate,vat_amount,total_amount,currency,paid (boolean). Monetary inputs strings, Decimal calculations; never infer legal VAT eligibility. Receivables payload same plus disputed(boolean),last_reminder_date; totals verified before draft. Bookkeeping payload {period:'YYYY-MM',documents:[{id,type,number,date,total_amount,currency}],expected_documents?:number}. Triage accepts description without required payload.
+Invoice payload: invoice_number,supplier,customer,issue_date (ISO date),due_date,net_amount,vat_rate,vat_amount,total_amount,currency,paid (boolean). Monetary inputs strings, Decimal calculations; never infer legal VAT eligibility. Receivables payload same plus disputed(boolean),last_reminder_date; totals verified before draft. Bookkeeping payload {period:'YYYY-MM',documents:[{id,type,number,date,total_amount,currency}],expected_documents?:number}. Triage accepts description without required payload, or reviewed payload.text with description as additional context. Preserved document risk flags and imported partial-payment evidence block simple financial workflows even after editing visible fields.
 
-UI requests same-origin JSON. Server localhost only by default, bounded bodies, rejects cross-origin mutations, strict enums, safe static paths, no debug secrets, audit events. Document auth/tenant isolation missing for production. AI mode disabled by default; backend model output advisory and cannot authorize actions. Skills/resources loaded selectively with byte/token estimate cap and provenance; no context from other tasks.
+UI requests same-origin JSON or the bounded multipart document upload. The demonstration server stays localhost-only. Production requires the separate authenticated entrypoint and one isolated deployment per client. Both bound bodies, reject cross-origin mutations and use strict enums, safe static paths and audit events. AI mode disabled by default; backend model output advisory and cannot authorize actions. Skills/resources loaded selectively with byte/token estimate cap and provenance; no context from other tasks.
 
 Tests unittest, invoke python3 -m unittest discover -s tests -v; app python3 -m admin_agent --port 8765. README owned by root. Frontend owns web/. Backend owns admin_agent/ and backend tests. Skills author owns skills/, data/skills.json and docs/skills-architecture.md. Root owns docs, integration QA, scripts, workflow, fixtures.

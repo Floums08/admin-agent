@@ -1,12 +1,14 @@
 # Backlog priorisé
 
-Priorités révisées après préparation de production le 2 octobre 2026. Les estimations sont qualitatives et ne constituent pas un devis.
+Priorités révisées après ajout de l'OCR local et des connecteurs gratuits le 2 octobre 2026. Les estimations sont qualitatives et ne constituent pas un devis.
 
 ## Livré pour préparer le premier client
 
 Mode production séparé, comptes nominatifs avec TOTP obligatoire, rôles serveur, sessions révocables, protection CSRF, isolation par instance et identité de base. Docker/Caddy et outils d'exploitation sont fournis. La chaîne SQLite → restic chiffré → récupération → restauration en quarantaine a été exécutée avec données synthétiques et dépôt local. Les preuves détaillées figurent dans [QA.md](QA.md).
 
 Le [parcours de lancement client](launch/00-START-HERE.md) comprend qualification, responsabilités, déploiement, recette, exploitation et décision finale. Le déploiement chez un hébergeur, le certificat public, la sauvegarde hors serveur et les accords du premier client restent à réaliser sur l'environnement retenu.
+
+L'import PDF/PNG/JPEG, l'extraction Poppler/Tesseract isolée avec sources par page et coordonnées, la correction et confirmation des champs, ainsi que les connecteurs CLI dossier local, CSV, Nextcloud/WebDAV et Dolibarr sont livrés. Ils n'activent aucun compte distant. Leur [guide](launch/07-OCR-ET-CONNECTEURS.md) détaille les plafonds et la recette. La qualité sur les documents du client et le temps de revue restent à mesurer avant engagement commercial.
 
 ## Avant d'ouvrir un client réel
 
@@ -18,12 +20,13 @@ Le [parcours de lancement client](launch/00-START-HERE.md) comprend qualificatio
 |---|---|---|---|---|
 | P0 avant chaque lancement | Recette de l'instance et exploitation réelle | Les briques de sécurité sont livrées, l'environnement client ne l'est pas | HTTPS réel, MFA enrôlé, restauration depuis stockage indépendant, responsabilités approuvées | Moyen |
 | P0 avant saturation | Pagination, archivage et conservation opérationnelle | La capacité initiale est de 100 dossiers cumulés | Purge/archivage contrôlés, restitution testée, traçabilité et charge mesurée avant augmentation | Élevé |
-| P0 | Import réel de PDF/images avec extraction sourcée | Éviter la ressaisie qui limite la valeur actuelle | Chaque champ critique lié à page/zone ; erreurs OCR explicites ; originaux conservés | Élevé |
-| P0 | Correction assistée des champs extraits | La revue doit être rapide et traçable | Image + champ côte à côte, historique et réanalyse après changement | Moyen |
+| P0 avant documents réels | Évaluer l'OCR sur un lot indépendant autorisé | Les tests synthétiques ne mesurent pas les scans réels | Exactitude champs critiques, abstention, langues, photos inclinées et temps de correction mesurés | Moyen |
+| P1 | Aperçu visuel sécurisé et rapprochement des zones | La version livrée affiche texte/page/coordonnées et télécharge l'original | Rendu isolé et borné, champ + image côte à côte, mobile et accessibilité vérifiés | Moyen |
 | P0 | Évaluation IA réelle sur lot indépendant | Les mocks valident l'intégration, pas la qualité d'un modèle | Résultats FR/ES, erreurs critiques, coût et latence mesurés, pas d'actions externes | Moyen |
 | P0 avant chaque lancement | Activer les sauvegardes et la supervision sur l'hôte | Outils livrés et restauration locale testée ; destination distante encore à configurer | Restauration réelle hors hôte, alerte sur échec, politique validée par type de donnée | Moyen |
 | P1 | Rapprochement et règlements partiels | Ne pas préparer de relance sur un solde périmé | Avoirs, paiements partiels, fraîcheur et ambiguïtés couverts par tests | Élevé |
-| P1 | Un premier connecteur en lecture seule | Réduire la collecte manuelle | OAuth/scopes minimaux, pagination, reprise et révocation testées | Élevé |
+| P0 avant connexion réelle | Recette du connecteur gratuit choisi | Adaptateurs livrés et protocoles simulés ; comptes réels non qualifiés | Compte de test, permissions minimales, schéma et pagination, révocation, conflits et fraîcheur vérifiés | Moyen |
+| P1 | Export de factures XML et connecteur métier supplémentaire | Les formats structurés évitent les erreurs OCR | Format et logiciel choisis selon le premier client, corpus de conformité et compte de test | Élevé |
 | P1 | Export métier pour un cabinet pilote | Le JSON ne suffit pas à l'exploitation comptable | Format accepté par le professionnel, références et pièces vérifiées | Moyen |
 | P1 | Contrats et échéances avec sources | Valeur récurrente hors factures | Clause et date prouvées, applicabilité qualifiée, abstention en cas ambigu | Élevé |
 | P1 | Boucle de correction mesurée | Prioriser selon erreurs réelles | Temps de revue, cause de rejet, version de skill et lot de réserve | Moyen |
@@ -32,7 +35,9 @@ Le [parcours de lancement client](launch/00-START-HERE.md) comprend qualificatio
 | P2 | Interface espagnole | Faciliter les pilotes en Espagne | Traductions revues et parité des parcours ; pays distinct de la langue | Moyen |
 
 ## Choix du premier connecteur
-Pennylane ou Qonto pour un pilote français, Holded pour un pilote espagnol : choisir selon le logiciel du premier utilisateur, pas en développant trois intégrations à l'avance. La recherche a consulté leur documentation ; aucun compte réel ni connecteur n'est activé.
+Commencer par le dossier local ou le CSV pour valider la collecte sans compte externe. Utiliser Nextcloud/WebDAV ou Dolibarr si le client les possède déjà, avec accès de test limité. Les adaptateurs refusent les adresses privées dans cette release ; une installation Nextcloud uniquement interne demande une évolution de déploiement et de sécurité évaluée. Ne pas acheter un logiciel seulement pour ce prototype.
+
+Pennylane, Qonto et Holded restent des possibilités futures selon l'outil du premier utilisateur ; leurs intégrations ne sont pas implémentées. Aucun compte mail, bancaire, comptable ou fiscal réel n'est activé dans cette livraison.
 
 ## Hors périmètre actuel
 Envoi de courriels et messages, contact client, paiement, télédéclaration, signature et mise à jour autonome du logiciel comptable. Leur absence est une règle de fonctionnement. La publication du code ne donne aucune autorisation d'exécuter ces actions.

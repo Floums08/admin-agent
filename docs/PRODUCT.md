@@ -18,9 +18,15 @@ TPE de services B2B de 1 à 10 personnes, France ou Espagne, sans responsable ad
 | Qualification administrative | Orientation à partir du texte saisi et questions utiles | Heuristiques ; pas de boîte mail connectée |
 | Contrôle de facture | Montants décimaux, HT/TVA/TTC, dates, champs et alertes | Une facture simple à un taux ; pas de contrôle exhaustif des mentions légales |
 | Suivi des créances | Échéance et états saisis, brouillon interne sous conditions | Pas de rapprochement bancaire, pas d'envoi |
-| Préparation comptable | Index de pièces structurées, doublons potentiels, comptage et totaux par devise | Les originaux ne sont pas téléversés ; aucun journal comptable certifié |
+| Préparation comptable | Index de pièces structurées, doublons potentiels, comptage et totaux par devise | Aucun journal comptable certifié ; import des originaux via le parcours documentaire séparé |
 | Huit autres compétences | Checklists spécialisées, champs à réunir et pistes de contrôle | Modes guidés, pas d'automatisation métier complète |
 | Assistance IA | Avis structuré optionnel avec références aux champs du dossier | Clé et modèle à configurer ; test réel fournisseur non réalisé lors de la livraison |
+
+## Collecte documentaire livrée
+
+L'import PDF/images, l'OCR local Poppler/Tesseract et quatre entrées en lecture seule (dossier local, CSV, Nextcloud/WebDAV, Dolibarr) réduisent la ressaisie. Les propositions documentaires restent à corriger et à confirmer ; le dossier créé n'est pas analysé ou approuvé automatiquement. La langue OCR ne détermine jamais le pays fiscal. Les originaux et les extractions versionnées sont conservés dans la base sauvegardée.
+
+Les connecteurs sont des commandes d'exploitation avec aperçu préalable, sans envoi ni écriture distante. Aucun compte client réel n'est activé par cette livraison. Les logiciels sont gratuits à installer ; hébergement, stockage, maintenance et temps de revue restent des coûts. Le [guide](launch/07-OCR-ET-CONNECTEURS.md) définit les formats, capacités et exclusions.
 
 ## Règles de confiance
 - Le statut prêt correspond à une revue interne ; il ne veut jamais dire envoyé, payé, déposé ou signé.

@@ -1,7 +1,10 @@
 # Allowlist: never send runtime files, keys, personal data or VCS history to the builder.
 **
 !Dockerfile
+!Dockerfile.ocr
 !requirements-production.txt
+!requirements-ocr.txt
+!THIRD-PARTY-NOTICES.md
 !admin_agent/
 !admin_agent/*.py
 !web/

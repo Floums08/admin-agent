@@ -15,6 +15,7 @@ from werkzeug.exceptions import HTTPException
 from .auth import AuthStore, SESSION_TTL
 from .catalog import ROOT, skills
 from .errors import AppError
+from .documents import DocumentStore, OCRClient, MAX_FILE_BYTES, MAX_UPLOAD_BYTES, MAX_DOCUMENTS, MAX_TOTAL_BYTES
 from .server import MAX_BODY, analyze_task
 from .storage import Store, audit_actor, audit_guard, encoded
 
@@ -35,6 +36,7 @@ class ProductionConfig:
     secret: bytes = field(repr=False)
     bind: str = "127.0.0.1"
     port: int = 8765
+    ocr_url: str = ""
 
     def validate(self):
         if not re.fullmatch(r"[a-z][a-z0-9-]{2,39}", self.client_id):
@@ -59,6 +61,8 @@ class ProductionConfig:
             raise ValueError("Adresse ou port interne invalide.")
         if os.environ.get("ADMIN_AGENT_AI_ENABLED", "0") != "0":
             raise ValueError("L'IA doit rester désactivée dans cette version de production.")
+        if self.ocr_url not in {"", "http://ocr:8766"}:
+            raise ValueError("ADMIN_AGENT_OCR_URL doit être vide ou exactement http://ocr:8766.")
         return self
 
     @classmethod
@@ -72,16 +76,18 @@ class ProductionConfig:
         secret = secret_path.read_bytes().strip()
         return cls(client_id=os.environ["ADMIN_AGENT_CLIENT_ID"], client_name=os.environ["ADMIN_AGENT_CLIENT_NAME"],
                    public_origin=os.environ["ADMIN_AGENT_PUBLIC_ORIGIN"], db_path=Path(os.environ["ADMIN_AGENT_DB"]), secret=secret,
-                   bind=os.environ.get("ADMIN_AGENT_BIND", "127.0.0.1"), port=int(os.environ.get("ADMIN_AGENT_PORT", "8765"))).validate()
+                   bind=os.environ.get("ADMIN_AGENT_BIND", "127.0.0.1"), port=int(os.environ.get("ADMIN_AGENT_PORT", "8765")),
+                   ocr_url=os.environ.get("ADMIN_AGENT_OCR_URL", "")).validate()
 
 
-def create_app(config=None):
+def create_app(config=None, *, ocr_client=None):
     config = (config or ProductionConfig.from_environment()).validate()
     store = Store(config.db_path, max_tasks=MAX_TASKS, max_events=MAX_EVENTS, max_result_bytes=MAX_RESULT_BYTES)
     auth = AuthStore(store, config.client_id, config.client_name, config.secret)
+    documents = DocumentStore(store, ocr_client=ocr_client or (OCRClient(config.ocr_url) if config.ocr_url else None))
     app = Flask(__name__, static_folder=None)
-    app.config.update(MAX_CONTENT_LENGTH=MAX_BODY, PROPAGATE_EXCEPTIONS=False)
-    app.extensions.update(store=store, auth=auth, production_config=config)
+    app.config.update(MAX_CONTENT_LENGTH=MAX_BODY, MAX_FORM_MEMORY_SIZE=131072, MAX_FORM_PARTS=4, PROPAGATE_EXCEPTIONS=False)
+    app.extensions.update(store=store, auth=auth, documents=documents, production_config=config)
     public_host = urlsplit(config.public_origin).netloc
 
     def response_error(message, status, code):
@@ -100,7 +106,9 @@ def create_app(config=None):
         return {"authenticated": bool(user), "user": user, "csrf_token": auth.csrf_token(token) if token else None,
                 "expires_at": int(session["expires_at"]) if session else None, "idle_timeout_seconds": 1800 if user else 900,
                 "client": {"id": config.client_id, "name": config.client_name}, "scope": "production_single_client", "mode": "offline",
-                "capabilities": {**{key: role in {"admin", "operator"} for key in ("create", "analyze", "update", "review")}, "export": role == "admin", "demo": False}}
+                "capabilities": {**{key: role in {"admin", "operator"} for key in ("create", "analyze", "update", "review", "documents_upload", "documents_create_task")},
+                    "documents_read": role in {"admin", "operator", "reader"}, "documents_extract": role in {"admin", "operator"} and documents.ocr is not None,
+                    "ocr_enabled": documents.ocr is not None, "export": role == "admin", "demo": False}}
 
     def body():
         if request.mimetype != "application/json":
@@ -144,6 +152,13 @@ def create_app(config=None):
             raise AppError("HTTPS est obligatoire.", 403, "https_required")
         if request.method not in {"GET", "HEAD", "POST"}:
             raise AppError("Méthode non prise en charge.", 405, "method_not_allowed")
+        if request.method == "POST":
+            limit = MAX_UPLOAD_BYTES if request.path == "/api/documents" else MAX_BODY
+            request.max_content_length = limit
+            if request.content_length is None:
+                raise AppError("Content-Length obligatoire.", 411, "length_required")
+            if request.content_length > limit:
+                raise AppError("Requête trop volumineuse.", 413, "payload_too_large")
         g.token = request.cookies.get(COOKIE_NAME, "")
         g.session = auth.get_session(g.token)
         g.audit_token = audit_actor.set(g.session["username"] if g.session and g.session.get("username") else "anonymous")
@@ -228,7 +243,49 @@ def create_app(config=None):
 
     @app.get("/api/health")
     def health():
-        return jsonify(status="ok", mode="offline", outbound_enabled=False, scope="production_single_client")
+        return jsonify(status="ok", mode="offline", outbound_enabled=False, scope="production_single_client", document_import=True, ocr_enabled=documents.ocr is not None)
+
+    @app.get("/api/documents")
+    def list_documents():
+        return jsonify(documents=documents.list(), enabled=True, ocr_enabled=documents.ocr is not None,
+                       limits={"max_file_bytes": MAX_FILE_BYTES, "max_documents": MAX_DOCUMENTS, "max_total_bytes": MAX_TOTAL_BYTES, "max_pages": 5})
+
+    @app.post("/api/documents")
+    def upload_document():
+        require_role("admin", "operator")
+        auth.rate_limit("document-upload-user", g.session["username"], 30)
+        if request.mimetype != "multipart/form-data":
+            raise AppError("Un fichier multipart/form-data est attendu.", 415, "unsupported_media_type")
+        if set(request.files) != {"file"} or len(request.files.getlist("file")) != 1 or set(request.form) - {"language"} or len(request.form.getlist("language")) > 1:
+            raise AppError("Envoyez exactement un fichier et une langue OCR facultative.")
+        upload = request.files["file"]
+        content = upload.stream.read(MAX_FILE_BYTES + 1)
+        document, created = documents.add(content, upload.filename, upload.mimetype, request.form.get("language", "fra+spa+eng"))
+        return jsonify(document=document), 201 if created else 200
+
+    @app.get("/api/documents/<uuid:document_id>")
+    def get_document(document_id):
+        return jsonify(document=documents.get(str(document_id)))
+
+    @app.get("/api/documents/<uuid:document_id>/original")
+    def original_document(document_id):
+        content, media_type = documents.original(str(document_id))
+        suffix = {"application/pdf": "pdf", "image/png": "png", "image/jpeg": "jpg"}[media_type]
+        response = Response(content, content_type=media_type)
+        response.headers["Content-Disposition"] = 'attachment; filename="document-' + str(document_id) + '.' + suffix + '"'
+        return response
+
+    @app.post("/api/documents/<uuid:document_id>/extract")
+    def extract_document(document_id):
+        require_role("admin", "operator")
+        auth.rate_limit("document-extract-user", g.session["username"], 15)
+        return jsonify(document=documents.extract(str(document_id), body()))
+
+    @app.post("/api/documents/<uuid:document_id>/create-task")
+    def task_from_document(document_id):
+        require_role("admin", "operator")
+        task, document, created = documents.create_task(str(document_id), body())
+        return jsonify(task=task, document=document), 201 if created else 200
 
     @app.get("/api/skills")
     def skills_route():
@@ -325,8 +382,8 @@ def main():
     config = ProductionConfig.from_environment()
     os.umask(0o077)
     app = create_app(config)
-    serve(app, host=config.bind, port=config.port, threads=4, channel_timeout=30, max_request_body_size=MAX_BODY,
-          max_request_header_size=16384, connection_limit=100, clear_untrusted_proxy_headers=True, url_scheme="https",
+    serve(app, host=config.bind, port=config.port, threads=4, channel_timeout=90, max_request_body_size=MAX_UPLOAD_BYTES,
+          max_request_header_size=16384, connection_limit=8, clear_untrusted_proxy_headers=True, url_scheme="https",
           expose_tracebacks=False, ident="AdminAgent")
 
 

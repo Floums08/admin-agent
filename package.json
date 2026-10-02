@@ -6,7 +6,9 @@
   "scripts": {
     "test:ui": "node tests/ui_smoke.cjs",
     "test:auth-ui": "node tests/ui_auth.cjs",
-    "test:browser": "node tests/browser_smoke.cjs"
+    "test:browser": "node tests/browser_smoke.cjs",
+    "test:documents-ui": "node tests/ui_documents.cjs",
+    "test:documents-browser": "node tests/browser_documents.cjs"
   },
   "devDependencies": {
     "linkedom": "0.18.12",

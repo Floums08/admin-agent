@@ -1,0 +1,3 @@
+source_id;numero;emetteur;client;date_facture;echeance;ht;taux_tva;tva;ttc;devise;payee;contestee
+demo-001;DEMO-2026-001;Entreprise fictive;Client fictif A;2026-09-01;2026-10-01;100,00;20;20,00;120,00;EUR;unknown;unknown
+demo-002;DEMO-2026-002;Entreprise fictive;Client fictif B;2026-09-02;2026-10-02;200,00;20;40,00;240,00;EUR;true;false

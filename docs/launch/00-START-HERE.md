@@ -26,12 +26,15 @@ Pour commencer aujourd'hui : dupliquer **hors du dépôt public** le [formulaire
 | Préparer le suivi d'une créance | Brouillon interne quand les informations permettent de le préparer | Aucun envoi ; paiement partiel, litige ou changement bancaire nécessitent une résolution humaine |
 | Préparer le dossier du comptable | Index des pièces déclarées, manques, doublons possibles, totaux par devise | Les originaux restent dans l'espace documentaire du client ; aucun rapprochement bancaire ni écriture comptable |
 | Trier une demande administrative | Orientation indicative et questions à clarifier | Tri par règles et mots-clés ; aucune boîte mail surveillée |
+| Préparer les champs depuis une pièce | Import PDF/PNG/JPEG, texte par page et suggestions à vérifier | 5 Mio et 5 pages maximum ; copie conservée ; chaque champ utilisé doit être confirmé avant création d'un dossier |
 
 Les huit autres skills — frais, échéances, fournisseurs, contrats, RH, conformité, trésorerie, synthèse hebdomadaire — sont **des guides de travail**, pas huit automatismes supplémentaires vendables comme achevés. Les tâches guidées n'accèdent pas au circuit d'approbation d'un résultat exécuté.
 
 Le mode de production de cette livraison exécute les contrôles déterministes. **L'analyse IA externe y est désactivée**, même si une clé existe sur le serveur. Son activation future nécessite une livraison dédiée, une évaluation métier avec appels réels, un cadre de traitement fournisseur et une nouvelle recette. Il faut donc présenter honnêtement l'offre initiale comme un atelier administratif assisté par logiciel, préparant l'usage d'agents IA spécialisés.
 
-Ne pas inclure dans l'offre initiale : import automatique PDF/OCR, accès banque ou messagerie, émission de factures réglementaires, déclaration fiscale, paie, paiement, signature, contact de clients ou scoring RH. Un statut « prêt » signifie **relu en interne**, pas « envoyé », « payé » ou « déclaré ».
+L'[OCR local et les connecteurs gratuits](07-OCR-ET-CONNECTEURS.md) ajoutent une collecte contrôlée : dossier local, CSV, Nextcloud/WebDAV et Dolibarr en lecture seule. Ils nécessitent une configuration et une recette sur les sources du client ; aucune connexion réelle n'est créée par la publication du code. Les connecteurs sont des commandes d'administration explicites, pas une synchronisation automatique depuis le navigateur.
+
+Ne pas inclure dans l'offre initiale : accès banque ou messagerie, émission de factures réglementaires, déclaration fiscale, paie, paiement, signature, contact de clients ou scoring RH. Un statut « prêt » signifie **relu en interne**, pas « envoyé », « payé » ou « déclaré ».
 
 ## Ce qu'il faut obtenir avant les données réelles
 
@@ -58,6 +61,8 @@ Calcul utile : **charge mensuelle = volume × temps humain complet par dossier +
 Fixer par écrit le nombre de dossiers inclus, la définition d'un dossier, les horaires de service, les délais de fourniture des pièces et la conduite à tenir au-delà du volume. Ne pas promettre une disponibilité 24 h/24 ou un délai de reprise qu'aucun essai n'a démontré.
 
 **Capacité initiale : 100 dossiers cumulés par instance**, tous statuts confondus, et 20 000 événements métier. Ce n'est pas un quota mensuel qui se réinitialise. Les dossiers de recette créés dans l'instance occupent aussi cette capacité. Choisir un premier périmètre compatible et planifier une évolution vérifiée avant la limite ; aucune fonction d'archivage/suppression de dossiers ne libère automatiquement la place. Un besoin initial supérieur n'entre pas dans le lancement de cette version.
+
+La collecte documentaire est également bornée : 100 documents, 100 Mio d'originaux et 20 Mio d'historique d'extraction cumulés par instance, avec cinq extractions réussies maximum par document. Ces quotas distincts ne sont pas des quotas mensuels. Les originaux importés et le texte extrait font partie de la base sauvegardée et de la politique de conservation.
 
 ## Conditions d'arrêt
 

@@ -9,6 +9,7 @@ flowchart TD
     U["Opérateur ou relecteur"] --> P["Caddy : HTTPS"]
     P --> A["Waitress + Flask : session et droits"]
     A --> M["Contrôles métier et skills"]
+    A --> O["OCR isolé : Poppler + Tesseract"]
     M --> B["SQLite : un client"]
     A --> R["Revue humaine"]
     R --> B
@@ -41,6 +42,20 @@ SQLite WAL gère les dossiers, les événements métier, l'identité client, les
 La capacité de lancement est limitée à **100 dossiers cumulés et 20 000 événements métier** par instance. Un résultat d'analyse dépassant 32 Kio est refusé avec une instruction de découpage du dossier. Les listes de production contiennent des résumés ; le dossier complet est chargé à son ouverture. La recherche de ces listes porte sur leurs champs visibles, pas sur toutes les valeurs du payload.
 
 Les événements d'authentification sont bornés à 50 000 entrées et 90 jours. Ce sont des choix techniques de cette version, à intégrer à la politique contractuelle ; ce ne sont pas des durées légales universelles. Les dossiers et leurs événements ne sont pas purgés automatiquement. Les sauvegardes suivent une politique séparée à définir. Ne pas dépasser les plafonds par une modification non testée ou en supprimant directement des lignes SQL.
+
+## Originaux, extraction et connecteurs
+
+Le service applicatif conserve les originaux sous forme de BLOB dans SQLite : la sauvegarde cohérente inclut ainsi les fichiers, les révisions d'extraction et les liens aux dossiers. L'export métier JSON n'inclut pas les originaux ; il ne remplace pas la sauvegarde. Les téléchargements exigent une session et sont servis en pièce jointe, sans affichage PDF intégré.
+
+Waitress limite le service applicatif à huit connexions et quatre threads. Le temporaire applicatif est borné à 128 Mio pour couvrir le tampon HTTP et les fichiers multipart simultanés. Ces limites conviennent à la première petite instance ; aucune charge soutenue ou disponibilité sous attaque n'est certifiée.
+
+Le service `ocr` reçoit uniquement le fichier courant sur un réseau interne dédié. Il n'a ni volume, ni secret, ni accès à la base ou à Internet ; son système de fichiers est en lecture seule avec un temporaire borné. Poppler, Tesseract et le décodage Pillow tournent dans un processus à ressources limitées, avec délai maximal. Le client HTTP applicatif accepte une adresse de service fixe et refuse les redirections. Le résultat du worker est validé comme une donnée non fiable avant enregistrement : tailles, pages, mots, coordonnées et présence des citations dans le texte.
+
+Le flux est explicite : téléverser → extraire → vérifier/corriger les champs → créer un dossier → analyser → revue métier habituelle. Une extraction concurrente ou périmée ne peut pas valider une ancienne proposition. La liaison document/dossier est atomique ; la provenance documentaire est réservée au serveur et conservée lors d'une correction. Les informations `paid` et `disputed` restent inconnues tant qu'une personne ne les qualifie pas.
+
+Capacités documentaires : 5 Mio/fichier, 5 pages, 100 originaux, 100 Mio cumulés, 5 extractions/document et 20 Mio de révisions cumulées. Ces plafonds ne définissent pas une conservation contractuelle ; aucune purge automatique n'est livrée.
+
+Les connecteurs s'exécutent sur l'hôte sous le contrôle de l'exploitant. La configuration privée porte l'identité de l'instance et les secrets sont lus dans des fichiers protégés. Les adaptateurs WebDAV/Dolibarr n'exposent aucune URL configurable depuis l'interface. Ils limitent les volumes, refusent redirections et adresses privées, et fixent l'IP publique résolue pendant la connexion TLS pour réduire le risque SSRF. Les réseaux internes Nextcloud ne sont donc pas pris en charge dans cette première implémentation. Les imports conservent une clé source et refusent les conflits de contenu plutôt que de remplacer silencieusement un dossier existant. Voir les commandes et limites dans le [guide dédié](launch/07-OCR-ET-CONNECTEURS.md).
 
 L'export JSON est un outil de restitution métier pour l'administrateur, pas une sauvegarde complète des accès. La sauvegarde utilise l'API SQLite pour produire un snapshot cohérent avec manifeste et checksum. La restauration refuse d'écraser une cible existante et contrôle l'identité du client. Elle désactive les comptes restaurés et invalide leurs moyens d'accès afin de ne pas réactiver des droits anciens. La remise en service exige de revalider la liste des personnes puis leurs nouveaux mots de passe et MFA.
 

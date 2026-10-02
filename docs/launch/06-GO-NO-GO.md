@@ -33,6 +33,8 @@ Statut initial : **NON LANCÉ**. Copier ce modèle dans l'espace privé du clien
 | G12 | IA externe, actions engageantes et démos indisponibles en production | Configuration et résultat U09 | Technique | Non vérifié |
 | G13 | Coût et engagement compatibles avec charge observée et 100 dossiers cumulés | Temps complet, budget hébergement, nombre de dossiers de recette, date prévue d'atteinte du plafond | Responsable service | Non vérifié |
 | G14 | Fin de service et export compréhensibles | Exercice de restitution, limites de purge comprises | Client + prestataire | Non vérifié |
+| G15 | Si OCR retenu : qualité, limites, isolation et confirmation vérifiées | D01 à D05, versions des moteurs, quota et durée des copies, restauration d'un original | Recette + technique | Non vérifié / hors périmètre à justifier |
+| G16 | Si connecteur retenu : périmètre source, lecture seule et retrait testés | D06, compte technique et droits, simulation/rejeu, résultat de révocation ; secrets hors Git | Client + technique | Non vérifié / hors périmètre à justifier |
 
 Les preuves techniques du dépôt, décrites dans [QA](../QA.md), peuvent justifier la version de départ. Elles ne remplissent pas les contrôles propres à l'hébergement, au client, aux comptes, aux contrats ou à l'ordonnanceur. Le rapport `preflight` technique est une pièce du dossier, pas une signature juridique ou métier.
 

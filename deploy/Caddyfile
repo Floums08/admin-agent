@@ -5,8 +5,21 @@
 {$DOMAIN} {
 	encode zstd gzip
 	header Strict-Transport-Security "max-age=31536000"
-	request_body {
-		max_size 96KB
+	@documentUpload {
+		method POST
+		path /api/documents
+	}
+	request_body @documentUpload {
+		max_size 6MiB
+	}
+	@otherRequests {
+		not {
+			method POST
+			path /api/documents
+		}
+	}
+	request_body @otherRequests {
+		max_size 64KiB
 	}
 	reverse_proxy app:8765 {
 		header_up -X-Forwarded-For

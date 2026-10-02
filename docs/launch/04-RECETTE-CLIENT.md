@@ -25,6 +25,21 @@ Créer trois comptes de recette nominatifs : `admin`, `operator`, `reader`. Fair
 
 Ajouter un test sur navigateur et écran étroit pour les quatre parcours retenus : connexion, création, analyse, revue. Vérifier lisibilité, accès clavier, erreurs de formulaire et fermeture de session. Les tests DOM automatisés ne certifient pas le rendu visuel.
 
+## Scénarios complémentaires pour OCR et collecte
+
+Ces tests sont obligatoires dès que l'import documentaire ou un connecteur entre dans le périmètre du client.
+
+| ID | Action | Résultat attendu |
+|---|---|---|
+| D01 — Formats et qualité | Importer PDF texte, PDF scanné, JPEG et PNG synthétiques dans chaque langue retenue | Pages et méthode d'extraction identifiables ; comparer les montants et dates aux originaux ; aucune exactitude supposée |
+| D02 — Limites | Essayer fichier trop gros, PDF de plus de cinq pages, document chiffré, format non accepté et scan illisible | Refus ou absence de suggestions explicite ; aucun dossier automatiquement approuvé |
+| D03 — Confirmation | Corriger une proposition, garder un statut de paiement inconnu puis créer le dossier | Confirmation humaine explicite, source/version et correction traçables ; dossier nouveau nécessitant analyse puis revue |
+| D04 — Doublon et panne | Réimporter le même fichier, répéter une création puis interrompre le worker | Pas de doublon silencieux ; reprise contrôlée ; aucune perte de l'original déjà importé |
+| D05 — Accès et sauvegarde | Tenter un import avec `reader` ; sauvegarder/restaurer un dossier avec document | Permission refusée ; octets, empreinte, extraction et audit concordent après restauration ; aucun port OCR public |
+| D06 — Connecteur retenu | Essayer la simulation, le lot réel autorisé, le rejeu puis révoquer l'accès source | Compte limité, aucune écriture distante, import traçable, refus après révocation ; limites du lot expliquées |
+
+Consigner les versions Tesseract/Poppler/Pillow et les paramètres de langue. Le taux de confiance OCR n'est pas une preuve de justesse d'un montant. Une page source doit être consultée même si une proposition semble plausible. Le lot métier doit inclure des cas nouveaux, distincts des exemples utilisés pour développer les règles.
+
 ## Lot métier représentatif
 
 Utiliser environ dix dossiers autorisés : cas normaux, manques, incohérence, cas refusé et correction. Si le client ne retient qu'un workflow, concentrer le lot métier dessus tout en conservant tous les tests de sécurité et d'exploitation. Le responsable métier établit le résultat attendu **avant** de consulter le résultat logiciel. Un lot qui sert à corriger les règles doit être complété par des cas nouveaux pour la décision finale.

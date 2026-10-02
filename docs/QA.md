@@ -1,3 +1,51 @@
+# Contrôle qualité — OCR et connecteurs, version 0.3
+
+Date : **2 octobre 2026**. Tous les documents, comptes et entreprises utilisés sont synthétiques. Aucun compte Nextcloud/Dolibarr réel, aucune messagerie, banque ou administration n'a été connecté. Aucun message client n'a été envoyé.
+
+## Vérifications de l'extension
+
+**204 tests Python réussis** sous Python 3.12.14, sans test ignoré : 104 antérieurs, 20 OCR, 19 API/stockage documentaire, 33 connecteurs, 20 revue indépendante et 8 risques métier. Les scénarios contenus dans des sous-tests ne s'ajoutent pas à ces nombres. Les résultats historiques plus bas décrivent les versions antérieures.
+
+Interface : **12 parcours DOM/API**, **13 scénarios DOM d'authentification**, **10 scénarios DOM documentaires** ; transport simulé pour les deux dernières suites. **19 parcours Chromium réel 131 réussis** : 10 existants et 9 documentaires, avec Waitress, TLS local temporaire et worker OCR réel. Les captures bureau et mobile 390 px ont été inspectées ; aucune erreur JavaScript ni requête navigateur extérieure à l'origine de test n'a été relevée. Ces captures synthétiques restent hors du dépôt publié.
+
+- **OCR réel** : Poppler sur PDF natifs EN/FR/ES ; Tesseract sur PNG/JPEG, PDF scanné et PDF avec OCR forcé ; modèles officiels français et espagnol. Le worker est aussi exercé dans son sous-processus isolé, avec les mêmes limites de ressources.
+- **Revue indépendante** : refus CSRF/RBAC, originaux intègres, fausse provenance, confirmations incomplètes, versions périmées, courses de création/extraction, révocation pendant OCR, réponses malveillantes du worker, sources réseau interdites et secrets protégés.
+- **Connecteurs** : protocole HTTPS simulé pour WebDAV et Dolibarr, méthode de lecture, limites, pagination, redirections, DNS public/privé, chemins traversants, statuts inconnus et conflits de contenu/mapping. Huit appels CLI réels sur dossier local et CSV : aperçu sans mutation, import, rejeu, source modifiée refusée, succès partiel explicite et propriété UID de la base conservée.
+- **Sauvegarde réelle** : SQLite → dépôt restic local chiffré → contrôle intégral → récupération → restauration en quarantaine. Le BLOB original et son SHA-256 sont comparés après restauration ; les comptes restent désactivés. Ce test ne qualifie pas un fournisseur hors hôte.
+- **Dépendances** : audits pip-audit 2.10.1 des requirements production et OCR sans vulnérabilité connue signalée au moment de l'exécution. Aucun audit de dépendances ne garantit l'absence de vulnérabilités.
+- **Contrôles statiques** : syntaxe Python/JavaScript/shell, liens internes des guides, configuration d'exemples et diff vérifiés.
+
+## Corrections prioritaires issues de la boucle QA
+
+| Défaut reproduit | Correction et portée |
+|---|---|
+| Normalisation d'un libellé Unicode décalant la valeur proposée | Abstention quand le mappage au texte original serait ambigu ; citation originale conservée |
+| Libellé « Total HT » interprété aussi comme total TTC ; plusieurs devises sur une même valeur | Sélection plus stricte et abstention en cas de contradiction |
+| Modèles de langues fournis sans dossier de configuration TSV | Activation explicite de la sortie TSV de Tesseract, sans dépendance implicite aux fichiers auxiliaires |
+| Source CSV identique mais mapping ou pays modifié | Empreinte des valeurs mappées distincte de l'empreinte brute ; conflit au réimport |
+| Provenance document/connecteur forgeable ou effaçable depuis une édition | Métadonnées réservées au serveur, snapshot immuable et changements ultérieurs signalés |
+| Import CLI root créant des fichiers SQLite incompatibles avec l'UID applicatif | Vérification de l'opérateur et remise des permissions/propriétaires selon la configuration client |
+| Chargement tardif de la liste effaçant le fichier sélectionné | Conservation du formulaire réel et de son objet File ; régression asynchrone |
+| Nouvelle extraction échouée laissant d'anciennes propositions utilisables | Anciennes preuves consultables, création bloquée jusqu'à une extraction réussie |
+| Mention d'acompte, avoir ou régime particulier perdue entre texte source et dossier | Signaux de risque sourcés, conservés dans la provenance et blocage du traitement simple pour revue spécialisée |
+| Solde restant accepté sans rapprochement ; paiement partiel importé retiré du formulaire | Champs de solde bloquants et vérification du snapshot importé immuable avant préparation financière |
+| Texte de demande triée ignoré quand envoyé uniquement par payload | Moteur lisant explicitement la demande vérifiée avec le contexte séparé |
+| Temporaire trop petit pour les doubles tampons d'upload concurrents | Connexions Waitress ramenées à huit, tmpfs applicatif à 128 Mio ; pas de certification de charge soutenue |
+
+## Limites qui restent à qualifier
+
+Une image française synthétique propre a réellement donné « TIC » à la place de « TTC ». Le moteur s'abstient sur ce libellé ; il ne corrige pas silencieusement le montant. Les fixtures et régressions vérifient le fonctionnement et les refus, **pas un taux d'exactitude représentatif sur un corpus client indépendant**. Mesurer les erreurs de champs critiques et le temps de correction avant engagement commercial.
+
+Les droits, versions et schémas des comptes Nextcloud/Dolibarr réels restent à tester chez le client. L'aperçu d'un connecteur relit la source lors de l'import ; ce n'est pas une transaction distante figée. Les imports ne prouvent ni un solde actuel ni l'exhaustivité d'une période. Les quotas initiaux restent cumulatifs ; la purge et l'archivage opérationnels ne sont pas livrés.
+
+L'environnement de rédaction ne dispose pas de Docker : les deux images et Caddy sont vérifiés par le job GitHub `production-image`. Le résultat de référence est toujours celui du commit exact dans [GitHub Actions](https://github.com/Floums08/admin-agent/actions). Un test TLS local ne prouve pas un certificat public ni le bon fonctionnement du pare-feu de l'hôte client.
+
+Commandes ajoutées : `npm run test:documents-ui`, `npm run test:documents-browser`, `python scripts/container_smoke.py --image admin-agent:ci --ocr-image admin-agent-ocr:ci`. Installer `requirements-production.txt`, `requirements-ocr.txt`, Poppler/Tesseract et les trois modèles avant la QA complète. Les tests ignorés pour dépendances absentes ne valent pas validation.
+
+---
+
+Les résultats suivants sont conservés comme **historique de la version 0.2**, avant l'extension OCR/connecteurs.
+
 # Contrôle qualité — préparation de production
 
 Date : **2 octobre 2026**. Les vérifications utilisent exclusivement des entreprises, comptes et dossiers synthétiques. Aucun hébergement client ni fournisseur de sauvegarde réel n'a été provisionné ; aucun message client, paiement ou dépôt n'a été exécuté.

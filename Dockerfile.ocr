@@ -1,0 +1,24 @@
+# Separate parser image: no application database, credentials, skills or web UI.
+# Record its resolved digest and /app/ocr-packages.txt for each client release.
+FROM python:3.12.15-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    OMP_THREAD_LIMIT=1 OPENBLAS_NUM_THREADS=1
+WORKDIR /app
+COPY requirements-ocr.txt ./
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+       poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra tesseract-ocr-spa util-linux \
+    && python -m pip install --no-cache-dir --requirement requirements-ocr.txt \
+    && groupadd --gid 10002 ocr \
+    && useradd --uid 10002 --gid 10002 --no-create-home --shell /usr/sbin/nologin ocr \
+    && dpkg-query -W -f='${Package} ${Version}\n' > /app/ocr-packages.txt \
+    && python -m pip freeze >> /app/ocr-packages.txt \
+    && test -x /usr/bin/prlimit \
+    && test -f /usr/share/doc/poppler-utils/copyright \
+    && test -f /usr/share/doc/tesseract-ocr/copyright \
+    && rm -rf /var/lib/apt/lists/*
+COPY admin_agent/__init__.py admin_agent/ocr.py admin_agent/ocr_worker.py ./admin_agent/
+COPY THIRD-PARTY-NOTICES.md ./
+USER 10002:10002
+EXPOSE 8766
+CMD ["python", "-m", "admin_agent.ocr_worker", "--host", "0.0.0.0", "--port", "8766"]

@@ -130,24 +130,45 @@ class Store:
         return json.loads(row["body"])
 
     def create(self, data):
-        clean, key = validate_task(data)
-        request_hash = hashlib.sha256(encoded(clean).encode()).hexdigest()
         with self.connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            if key:
-                previous = connection.execute("SELECT body,request_hash FROM tasks WHERE idempotency_key=?", (key,)).fetchone()
-                if previous:
-                    if previous["request_hash"] != request_hash:
-                        raise AppError("Cette clé d'idempotence est déjà associée à un dossier différent.", 409, "idempotency_conflict")
-                    return json.loads(previous["body"]), False
-            if self.max_tasks is not None and connection.execute("SELECT count(*) FROM tasks").fetchone()[0] >= self.max_tasks:
-                raise AppError("Capacité de dossiers atteinte. Contactez l’administrateur.", 409, "capacity_reached")
-            timestamp = now()
-            task = dict(id=str(uuid.uuid4()), **clean, status="new", created_at=timestamp, updated_at=timestamp, result=None, version=1)
-            connection.execute("INSERT INTO tasks(id,body,idempotency_key,request_hash,created_at) VALUES (?,?,?,?,?)",
-                               (task["id"], encoded(task), key, request_hash, timestamp))
-            self._event(connection, task["id"], "task.created", {"skill_id": task["skill_id"], "country": task["country"], "actor": "local_operator"})
-            return task, True
+            return self._create(connection, data)
+
+    def create_imported(self, data):
+        """Trusted server-side connector entrypoint; never exposed by an HTTP route."""
+        clean, key = validate_task(data)
+        source = clean["payload"].get("_connector_source")
+        if not isinstance(source, dict):
+            raise AppError("La provenance du connecteur est obligatoire.")
+        imported = {key: value for key, value in clean["payload"].items() if key != "_connector_source"}
+        clean["payload"] = dict(imported, _connector_source=dict(source, imported_values=imported, changed_since_import=[]))
+        clean["idempotency_key"] = key
+        with self.connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            return self._create(connection, clean, allow_connector_source=True)
+
+    def _create(self, connection, data, allow_document_source=False, allow_connector_source=False):
+        """Create inside an existing transaction, including document linkage."""
+        clean, key = validate_task(data)
+        if "_document_source" in clean["payload"] and not allow_document_source:
+            raise AppError("La provenance documentaire doit être créée par l'import contrôlé.")
+        if "_connector_source" in clean["payload"] and not allow_connector_source:
+            raise AppError("La provenance du connecteur doit être créée par l'import contrôlé.")
+        request_hash = hashlib.sha256(encoded(clean).encode()).hexdigest()
+        if key:
+            previous = connection.execute("SELECT body,request_hash FROM tasks WHERE idempotency_key=?", (key,)).fetchone()
+            if previous:
+                if previous["request_hash"] != request_hash:
+                    raise AppError("Cette clé d'idempotence est déjà associée à un dossier différent.", 409, "idempotency_conflict")
+                return json.loads(previous["body"]), False
+        if self.max_tasks is not None and connection.execute("SELECT count(*) FROM tasks").fetchone()[0] >= self.max_tasks:
+            raise AppError("Capacité de dossiers atteinte. Contactez l’administrateur.", 409, "capacity_reached")
+        timestamp = now()
+        task = dict(id=str(uuid.uuid4()), **clean, status="new", created_at=timestamp, updated_at=timestamp, result=None, version=1)
+        connection.execute("INSERT INTO tasks(id,body,idempotency_key,request_hash,created_at) VALUES (?,?,?,?,?)",
+                           (task["id"], encoded(task), key, request_hash, timestamp))
+        self._event(connection, task["id"], "task.created", {"skill_id": task["skill_id"], "country": task["country"], "actor": "local_operator"})
+        return task, True
 
     def get(self, task_id):
         with self.connection() as connection:
@@ -209,6 +230,26 @@ class Store:
                 raise AppError("Le dossier a changé. Rechargez-le avant de modifier.", 409, "version_conflict")
             candidate = {key: task[key] for key in ("title", "description", "skill_id", "country", "payload")}
             candidate.update({key: value for key, value in data.items() if key != "version"})
+            existing_source = task["payload"].get("_document_source")
+            if isinstance(candidate.get("payload"), dict):
+                submitted_source = candidate["payload"].get("_document_source")
+                if submitted_source is not None and submitted_source != existing_source:
+                    raise AppError("La provenance documentaire ne peut pas être modifiée.")
+                if existing_source:
+                    source = dict(existing_source)
+                    source["changed_since_document_review"] = sorted(key for key in (set(source["fields"]) | (set(candidate["payload"]) - {"_document_source"}))
+                        if key not in source["fields"] or key not in candidate["payload"] or candidate["payload"].get(key) != source["fields"][key]["reviewed_value"])
+                    candidate["payload"] = dict(candidate["payload"], _document_source=source)
+                existing_connector = task["payload"].get("_connector_source")
+                submitted_connector = candidate["payload"].get("_connector_source")
+                if submitted_connector is not None and submitted_connector != existing_connector:
+                    raise AppError("La provenance du connecteur ne peut pas être modifiée.")
+                if existing_connector:
+                    source = dict(existing_connector)
+                    imported = source["imported_values"]
+                    source["changed_since_import"] = sorted(key for key in (set(imported) | (set(candidate["payload"]) - {"_connector_source"}))
+                        if key not in imported or key not in candidate["payload"] or candidate["payload"].get(key) != imported[key])
+                    candidate["payload"] = dict(candidate["payload"], _connector_source=source)
             clean, _ = validate_task(candidate)
             task.update(**clean, status="new", result=None, updated_at=now(), version=task["version"] + 1)
             connection.execute("UPDATE tasks SET body=? WHERE id=?", (encoded(task), task_id))

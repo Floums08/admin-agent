@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "client_id": "client-demo",
+  "connectors": [
+    {
+      "id": "intake-folder",
+      "kind": "folder",
+      "folder": "/srv/admin-clients/client-demo/intake"
+    },
+    {
+      "id": "invoice-csv",
+      "kind": "csv",
+      "file": "/srv/admin-clients/client-demo/intake/invoices.csv",
+      "country": "FR",
+      "delimiter": ";",
+      "decimal_separator": ",",
+      "date_format": "%Y-%m-%d",
+      "mapping": {
+        "source_id": "source_id",
+        "invoice_number": "numero",
+        "supplier": "emetteur",
+        "customer": "client",
+        "issue_date": "date_facture",
+        "due_date": "echeance",
+        "net_amount": "ht",
+        "vat_rate": "taux_tva",
+        "vat_amount": "tva",
+        "total_amount": "ttc",
+        "currency": "devise",
+        "paid": "payee",
+        "disputed": "contestee"
+      }
+    },
+    {
+      "id": "nextcloud-intake",
+      "kind": "nextcloud",
+      "base_url": "https://cloud.example.com/remote.php/dav/files/admin-agent/Intake/",
+      "username": "admin-agent",
+      "secret_file": "/srv/admin-clients/client-demo/secrets/nextcloud_app_password"
+    },
+    {
+      "id": "dolibarr-invoices",
+      "kind": "dolibarr",
+      "base_url": "https://erp.example.com/api/index.php/",
+      "secret_file": "/srv/admin-clients/client-demo/secrets/dolibarr_api_key",
+      "country": "FR",
+      "currency": "EUR",
+      "timezone": "Europe/Paris",
+      "issuer": "Entreprise de démonstration — à remplacer"
+    }
+  ]
+}

@@ -11,6 +11,14 @@ MONEY = re.compile(r"^\d{1,12}(?:\.\d{1,2})?$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 CURRENCIES = {"EUR", "USD", "GBP", "CHF", "CAD", "AUD"}
 CENT = Decimal("0.01")
+DOCUMENT_RISK_MESSAGES = {
+    "partial_payment": "La pièce évoque un acompte ou un paiement partiel. Le solde doit être rapproché manuellement avant tout contrôle final ou préparation de relance.",
+    "credit_note": "La pièce évoque un avoir ou une correction de facture. Ce cas dépasse le contrôle d'une facture simple et nécessite une revue spécialisée.",
+    "special_vat": "La pièce évoque un traitement de TVA particulier. Son applicabilité doit être vérifiée par le responsable compétent ; aucun régime n'est déduit automatiquement.",
+    "bank_change": "La pièce évoque des coordonnées bancaires nouvelles ou modifiées. Faire vérifier le bénéficiaire par un canal indépendant avant validation.",
+    "retention": "La pièce évoque une retenue. Ce cas dépasse le calcul d'une facture simple ; faire vérifier les montants et le solde par le responsable compétent.",
+    "multiple_tax_rates": "La pièce indique plusieurs taux de TVA. Le moteur à un seul taux ne peut pas conclure ; faire contrôler le détail de la facture.",
+}
 
 
 class CheckResult:
@@ -92,6 +100,38 @@ class CheckResult:
         return bool(self.value["missing_fields"]) or any(f["severity"] == "error" for f in self.value["findings"])
 
 
+def _document_scope(payload, result):
+    """Immutable source warnings cannot disappear when the dossier is edited.
+
+The document service derives these markers from preserved extraction text.
+They indicate that this simple workflow is insufficient, not a legal finding.
+"""
+    if "_document_source" not in payload:
+        return
+    source = payload["_document_source"]
+    flags = source.get("document_risk_flags") if isinstance(source, dict) else None
+    field = "_document_source.document_risk_flags"
+    if not isinstance(flags, list) or len(flags) > 20:
+        result.finding("error", "Les contrôles de périmètre de la pièce source sont absents ou invalides. Reprendre la revue documentaire avant validation.", field)
+        result.check("document_scope", False, "Les marqueurs documentaires conservés doivent être disponibles.")
+        return
+    seen = set()
+    for flag in flags:
+        valid = (isinstance(flag, dict) and isinstance(flag.get("code"), str) and flag["code"] in DOCUMENT_RISK_MESSAGES
+                 and type(flag.get("page")) is int and 1 <= flag["page"] <= 5
+                 and isinstance(flag.get("quote"), str) and bool(flag["quote"].strip()))
+        if not valid:
+            result.finding("error", "Un marqueur de la pièce source n'est pas pris en charge. Faire contrôler le document avant validation.", field)
+            continue
+        code = flag["code"]
+        if code not in seen:
+            result.finding("error", DOCUMENT_RISK_MESSAGES[code] + f" Signal conservé sur la page {flag['page']}.", field)
+            seen.add(code)
+    result.check("document_scope", not flags,
+                 "Aucun marqueur bloquant détecté dans le texte extrait ; vérifier la pièce originale." if not flags else
+                 "La pièce comporte un marqueur qui exige une revue au-delà du contrôle simple.")
+
+
 def invoice(task, today, receivable=False):
     result = CheckResult()
     payload = task["payload"]
@@ -103,10 +143,14 @@ def invoice(task, today, receivable=False):
     currency = result.currency(payload)
     paid = result.boolean(payload, "paid")
     disputed = result.boolean(payload, "disputed") if receivable else False
-    partial_fields = {"paid_amount", "amount_paid", "credit_amount", "has_partial_payment", "partial_payment"}
+    _document_scope(payload, result)
+    partial_fields = {"paid_amount", "amount_paid", "credit_amount", "remaining_amount", "has_partial_payment", "partial_payment"}
+    connector_source = payload.get("_connector_source")
+    imported = connector_source.get("imported_values", {}) if isinstance(connector_source, dict) else {}
+    imported_partial = isinstance(imported, dict) and bool(partial_fields.intersection(imported))
     partial_description = any(phrase in task["description"].casefold() for phrase in ("acompte", "paiement partiel", "partial payment", "pago parcial"))
-    if partial_fields.intersection(payload) or receivable and partial_description:
-        result.finding("error", "Les paiements partiels ne sont pas pris en charge. Rapprocher le solde restant manuellement avant de préparer une relance.", "paid_amount")
+    if partial_fields.intersection(payload) or imported_partial or receivable and partial_description:
+        result.finding("error", "Les paiements partiels, acomptes, avoirs et soldes restants ne sont pas rapprochés automatiquement. Vérifier le solde manuellement avant de préparer une relance.", "paid_amount")
     if payload.get("bank_details_changed") is not None:
         bank_changed = result.boolean(payload, "bank_details_changed")
         if bank_changed is True:
@@ -235,7 +279,13 @@ def bookkeeping(task, today):
 
 def triage(task, today):
     result = CheckResult()
-    text = task["description"].strip()
+    context = task["description"].strip()
+    request_text = task["payload"].get("text")
+    if request_text is not None and (not isinstance(request_text, str) or len(request_text) > 12000):
+        result.finding("error", "Le texte de la demande doit être un texte de 12 000 caractères maximum.", "text")
+        request_text = ""
+    request_text = (request_text or "").strip()
+    text = "\n\n".join(dict.fromkeys(part for part in (request_text, context) if part))
     if not text:
         result.missing("description")
     rules = [
@@ -253,7 +303,7 @@ def triage(task, today):
     ]
     lower = text.casefold()
     matches = [skill_id for skill_id, words in rules if any(word in lower for word in words)]
-    result.check("description_available", bool(text), "Le tri se base uniquement sur le texte saisi.")
+    result.check("description_available", bool(text), "Le tri se base sur le texte de la demande et le contexte saisis.")
     if text:
         destinations = ", ".join(matches) or "qualification manuelle"
         result.value["summary"] = f"Orientation indicative : {destinations}."

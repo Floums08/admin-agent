@@ -73,7 +73,8 @@ def init_client(client_id, domain, directory, name=None):
     _private_write(directory / "client.json", json.dumps(config, ensure_ascii=False, indent=2) + "\n")
     lines = {"CLIENT_ID": client_id, "CLIENT_NAME": "'" + name + "'", "DOMAIN": domain,
              "CLIENT_DATA_DIR": str(directory / "data"), "SESSION_SECRET_PATH": str(session_path),
-             "APP_UID": str(uid), "APP_GID": str(gid), "APP_IMAGE": "admin-agent:local"}
+             "APP_UID": str(uid), "APP_GID": str(gid), "APP_IMAGE": "admin-agent:local",
+             "OCR_IMAGE": "admin-agent-ocr:local"}
     _private_write(directory / "client.env", "".join(f"{key}={value}\n" for key, value in lines.items()))
     return {"created": True, "client_id": client_id, "config": str(directory / "client.json"),
             "compose_env": str(directory / "client.env"), "secrets_printed": False}

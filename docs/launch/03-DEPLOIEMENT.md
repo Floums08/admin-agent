@@ -8,7 +8,7 @@ Les commandes suivantes sont à exécuter dans un terminal autorisé du serveur 
 
 Choisir un hébergeur et une région conformes au dossier de traitement. Prévoir chiffrement du disque, sauvegarde distante indépendante, administrateurs nominatifs avec MFA et accès SSH par clés. Un utilisateur ayant accès à Docker doit être considéré comme administrateur du serveur. Restreindre SSH aux administrateurs et au réseau convenu. Seuls HTTPS, HTTP nécessaire au certificat/redirection et les ports d'administration explicitement retenus doivent être exposés ; jamais le port 8765.
 
-Installer une version maintenue de Docker Engine et Compose, Git, Python 3.11+ avec venv, restic et les utilitaires Linux `findmnt`/`flock`. Synchroniser l'horloge par NTP : les codes TOTP dépendent de l'heure. Définir une supervision de l'espace disque, du service, des échecs de sauvegarde et du certificat. Les ressources du conteneur sont plafonnées dans Compose ; dimensionner la VM après mesure, sans promesse de débit déduite de ces plafonds.
+Installer une version maintenue de Docker Engine et Compose, Git, Python 3.11+ avec venv, restic et les utilitaires Linux `findmnt`/`flock`. Synchroniser l'horloge par NTP : les codes TOTP dépendent de l'heure. Définir une supervision de l'espace disque, du service, des échecs de sauvegarde et du certificat. Les plafonds Compose sont de 512 Mio pour l'application, 768 Mio pour le worker OCR et 256 Mio pour Caddy ; ils s'ajoutent au système hôte, aux sauvegardes et aux autres services. Dimensionner la VM après mesure, sans promesse de débit déduite de ces plafonds. Aucun port OCR 8766 ne doit être publié.
 
 Créer le DNS du domaine vers la VM ; vérifier les enregistrements IPv4 et IPv6 présents. Un enregistrement IPv6 erroné peut empêcher l'accès ou l'obtention du certificat. Caddy gère HTTPS pour le domaine configuré, mais il faut vérifier le certificat réel après lancement.
 
@@ -79,17 +79,28 @@ Ces commandes sont des opérations distinctes : ne pas exécuter toute la séque
 
 ## 5. Construire et ouvrir la stack
 
-Avant le build, remplacer `APP_IMAGE=admin-agent:local` dans `client.env` par une étiquette de livraison propre, par exemple `admin-agent:release-20261002`. Ne pas réutiliser cette étiquette pour une autre image ; conserver aussi son digest.
+Avant le build, remplacer `APP_IMAGE=admin-agent:local` dans `client.env` par une étiquette de livraison propre, par exemple `admin-agent:release-20261002`. Renseigner également `OCR_IMAGE=admin-agent-ocr:release-20261002` ; les anciens fichiers sans cette variable utilisent le nom de développement `admin-agent-ocr:local`. Ne pas réutiliser une étiquette de livraison pour une autre image ; conserver les deux digests.
 
 ```bash
 sudo docker compose --env-file runtime/acme/client.env -p admin-acme config --quiet
 sudo docker compose --env-file runtime/acme/client.env -p admin-acme build --pull
 sudo docker compose --env-file runtime/acme/client.env -p admin-acme up -d
 sudo docker compose --env-file runtime/acme/client.env -p admin-acme ps
-sudo docker compose --env-file runtime/acme/client.env -p admin-acme logs --tail=100 app proxy
+sudo docker compose --env-file runtime/acme/client.env -p admin-acme logs --tail=100 app ocr proxy
 ```
 
-Compose utilise le serveur de production Flask/Waitress, le reverse proxy Caddy, un système de fichiers applicatif en lecture seule et une base persistante. Le service applicatif ne publie aucun port sur l'hôte et son réseau Docker est interne. Le profil de production refuse l'IA externe. Le serveur local `python -m admin_agent` reste un outil de démonstration et ne doit pas être utilisé pour ce déploiement.
+Compose utilise le serveur de production Flask/Waitress, le reverse proxy Caddy, un système de fichiers applicatif en lecture seule et une base persistante. Le service applicatif ne publie aucun port sur l'hôte et ses réseaux Docker sont internes. Le worker OCR est séparé, sans montage persistant ni secret, et ne rejoint que le réseau `documents`, partagé avec l'application. Caddy ne rejoint pas ce réseau. L'application utilise l'adresse interne fixe `http://ocr:8766` ; l'état sain du worker est requis au démarrage de la stack. Les détails et limites figurent dans le [guide OCR](07-OCR-ET-CONNECTEURS.md).
+
+Le profil de production refuse l'IA externe. Le serveur local `python -m admin_agent` reste un outil de démonstration et ne doit pas être utilisé pour ce déploiement. La démonstration reste utilisable sans dépendances OCR ; l'extraction nécessite un worker explicitement configuré.
+
+Conserver le manifeste de versions du worker avec les preuves privées de livraison :
+
+```bash
+sudo docker compose --env-file runtime/acme/client.env -p admin-acme exec -T ocr cat /app/ocr-packages.txt
+sudo docker compose --env-file runtime/acme/client.env -p admin-acme images
+```
+
+Le Dockerfile installe les paquets Poppler et Tesseract maintenus de Debian Bookworm au moment du build, ainsi que les langues FR/ES/EN. L'image Python et les dépendances Python ont des versions explicites ; les correctifs système sont résolus au build et identifiés par manifeste et digest. Refaire un build avec `--pull --no-cache` pour prendre les correctifs système, puis passer la recette avant remplacement. Les notices des paquets sont conservées ; voir [THIRD-PARTY-NOTICES](../../THIRD-PARTY-NOTICES.md).
 
 Depuis un poste autorisé, ouvrir `https://admin.example.com`, vérifier le certificat et se connecter avec mot de passe + TOTP. Tester le nom du client, les rôles et la déconnexion. `/healthz` sert de signal minimal de vie ; `/readyz` contrôle la disponibilité prévue du service. Ne pas interpréter un HTTP 200 comme une recette métier ou une preuve de sauvegarde.
 
@@ -131,6 +142,8 @@ sudo systemctl list-timers admin-agent-backup@acme.timer
 ```
 
 Le timer fourni vise 02 h 30 UTC avec décalage aléatoire maximal de dix minutes et rattrapage d'une échéance manquée. Cette cadence est un exemple technique à adapter au RPO convenu. Un `last_success` est écrit dans `runtime/acme/evidence/backup-status.json` après sauvegarde et contrôle du dépôt. Le statut indique explicitement qu'une restauration reste à vérifier. Installer une alerte si la tâche échoue ou si ce fichier devient trop ancien ; aucun système d'alerte externe n'est configuré automatiquement.
+
+Les originaux importés sont des BLOB dans SQLite : la sauvegarde cohérente comprend les pièces, extractions et corrections avec les dossiers. Prévoir l'espace nécessaire dans le `tmpfs` de sauvegarde, le dépôt distant et la restauration ; le quota de documents n'est pas la taille totale maximale de la base. Les caches/configurations privés des connecteurs sur l'hôte ne sont pas automatiquement inclus dans cette sauvegarde : documenter leur reconstruction et la récupération de leurs secrets. Ne pas les copier dans l'image web.
 
 Le dépôt ne lance pas de `forget`/`prune` automatiquement. Définir une politique approuvée, commencer par une simulation, vérifier ce qui serait supprimé puis faire exécuter la purge par une personne habilitée. Évaluer les protections contre effacement malveillant et leur compatibilité avec les durées convenues.
 

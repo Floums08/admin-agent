@@ -44,6 +44,7 @@ Le dossier client précise également la base juridique retenue et l'information
 | DNS / certificats | À choisir | À confirmer | Métadonnées de domaine ; vérifier la chaîne technique | Références à consigner | À examiner |
 | Supervision / support | À choisir ou exploitation interne | À confirmer | Métadonnées nécessaires seulement | Références à consigner | À examiner |
 | Fournisseur IA externe | Aucun en mode production de cette version | Sans objet tant que désactivé | Aucune transmission par le mode production | Nouvelle validation requise avant activation future | Désactivé |
+| Source documentaire / ERP facultatif | Instance Nextcloud/WebDAV ou Dolibarr retenue | À confirmer pour cette instance et son hébergeur | Lectures limitées au dossier ou aux factures autorisés | Compte technique, droits, fournisseur et révocation documentés | À configurer et recetter si retenu |
 
 GitHub contient le code et les exemples fictifs, pas la base, les documents ni les secrets. Le code ouvert n'autorise pas l'ajout de données clientes dans les tickets de support.
 
@@ -57,6 +58,7 @@ La durée dépend de la finalité et des obligations applicables. La CNIL distin
 |---|---|---|---|---|
 | Champs et résultats des dossiers | À décider | À décider | Fenêtre de copies à décider | Client et prestataire |
 | Références vers originaux | À décider | Selon finalité documentée | À aligner | Client |
+| Copies PDF/images, texte extrait et corrections humaines | À décider avant premier import | Si nécessaire selon la finalité ; distinct de l'archivage légal | Inclus dans la sauvegarde SQLite ; expiration à aligner | Client et prestataire |
 | Événements métier | Durée à décider ; pas de purge automatique | Si justifié | À aligner | Responsable technique / vie privée |
 | Événements de sécurité/authentification | Rotation technique : 90 jours maximum et 50 000 entrées maximum | Si requis, prévoir une solution avant lancement | Copies de sauvegarde à traiter séparément | Responsable technique / vie privée |
 | Comptes désactivés et identité d'audit | À décider | Trace minimale justifiée | À aligner | Responsable technique |
@@ -65,6 +67,8 @@ La durée dépend de la finalité et des obligations applicables. La CNIL distin
 La livraison n'effectue **aucune purge automatique des dossiers ni des événements métier**. Le journal de sécurité applique une rotation technique de 90 jours ou 50 000 entrées, la limite atteinte en premier ; ce choix produit n'est pas une durée légale et ne garantit pas 90 jours si le plafond d'entrées est atteint. Faire accepter son adéquation ou le modifier de manière testée avant lancement. Fixer le processus et un responsable pour les autres catégories ; si le besoin exige une suppression sélective immédiate, cette capacité doit être développée et testée avant acceptation du client. Une suppression SQL improvisée risque de casser l'audit et les relations entre données.
 
 Les sauvegardes restent soumises à la politique convenue : documenter leur expiration, les accès restreints et la réapplication des instructions de suppression en cas de restauration. Ne pas promettre une suppression immédiate de toutes les copies si l'infrastructure ne la permet pas. Les exports téléchargés sont aussi des copies à inventorier.
+
+Le worker OCR reçoit les octets d'une pièce uniquement sur le réseau Docker interne. Il n'a ni accès Internet, ni clé fournisseur, ni montage de la base. Il utilise un espace temporaire en mémoire borné, nettoyé après traitement ; les copies durables, résultats et corrections sont conservés par l'application dans sa base. Les collectes WebDAV/Dolibarr s'exécutent depuis une CLI administrée sur l'hôte, avec des secrets propres au connecteur, hors du serveur web. La lecture seule protège la source contre une écriture par le connecteur ; elle n'annule pas les obligations liées à la copie locale des données.
 
 ## Mesures organisationnelles retenues pour ce lancement
 
