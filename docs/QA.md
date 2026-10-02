@@ -27,6 +27,7 @@ Les 24 scénarios métier déterministes existants restent des sous-tests inclus
 | Réponse tardive ou autre onglet conservant un dossier après logout | Génération de session UI, purge des données et signal inter-onglets sans contenu métier |
 | Petit input générant un résultat et des listes démesurés | Résultat borné à 32 Kio, 100 dossiers maximum, listes compactes, export en flux, détail limité aux 200 derniers événements avec indication explicite |
 | Mauvais catalogue dans l'image | Dockerfile corrigé pour copier le fichier réellement lu |
+| Premier smoke du conteneur : attente HTTP incorrecte dans le test | La route de démo absente refuse le POST avec 405 ; le test vérifie ce refus et l'absence de nouveaux dossiers |
 | Droits et frontières HTTP | Tests lecteur, origine/CSRF, cookie/session, Host/proxy, JSON dupliqué/invalide/trop volumineux et identité de base |
 | Tableau difficile à lire sur mobile | État du dossier rendu entièrement visible à 390 px ; dialogues et parcours revérifiés |
 

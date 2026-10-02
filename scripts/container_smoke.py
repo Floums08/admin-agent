@@ -124,7 +124,11 @@ def main():
         assert analyzed['task']['version'] > created['task']['version']
         exported, _ = request('/api/export', cookie=cookie)
         assert len(exported['tasks']) == 1
-        request('/api/demo/seed', 'POST', {}, cookie, csrf, 404)
+        # Flask's public GET asset catch-all makes this absent POST route a 405.
+        # Verify both refusal and that no demonstration records appeared.
+        request('/api/demo/seed', 'POST', {}, cookie, csrf, 405)
+        remaining, _ = request('/api/tasks', cookie=cookie)
+        assert len(remaining['tasks']) == 1
         request('/api/tasks', 'POST', task_input, cookie, None, 403)
         reader, reader_cookie = login('ci-reader')
         request('/api/tasks', cookie=reader_cookie)
