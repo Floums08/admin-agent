@@ -1,0 +1,15 @@
+# Always merge AFTER compose.yaml. Requires Docker Compose >= 2.24.4.
+# !override replaces the public production ports; ordinary list merging is unsafe here.
+services:
+  app:
+    environment:
+      ADMIN_AGENT_PUBLIC_ORIGIN: https://pilot.localhost:${PILOT_PORT:?}
+  proxy:
+    ports: !override
+      - target: 443
+        published: "${PILOT_PORT:?}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks: !override [private]
+    volumes:
+      - ./deploy/Caddyfile.pilot:/etc/caddy/Caddyfile:ro

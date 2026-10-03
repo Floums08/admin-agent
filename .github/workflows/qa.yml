@@ -69,6 +69,8 @@ jobs:
         run: python scripts/container_smoke.py --image admin-agent:ci --ocr-image admin-agent-ocr:ci
       - name: Validate the TLS proxy configuration
         run: docker compose --env-file /tmp/admin-agent-compose-client/client.env run --rm --no-deps proxy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Rehearse the private invoice pilot with verified local TLS
+        run: python scripts/pilot_smoke.py --image admin-agent:ci --ocr-image admin-agent-ocr:ci
       - name: Install restoration test dependency
         run: sudo apt-get update && sudo apt-get install --yes restic
       - name: Exercise encrypted snapshot restoration with synthetic data

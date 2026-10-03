@@ -6,6 +6,8 @@ Premier socle développé le 2 octobre 2026, à partir d'une recherche France / 
 
 **Préparer un premier client : commencer par le [guide de lancement](docs/launch/00-START-HERE.md).** Le dépôt contient maintenant un mode production distinct, ses outils d'exploitation et un parcours d'intégration client. Une instance et une base sont dédiées à une seule entreprise. La publication du code ne signifie pas qu'un hébergement client est déployé ou que la recette de cet environnement est terminée.
 
+**Premier pilote proposé : [collecte et contrôle de factures](docs/launch/08-PILOTE-FACTURES.md).** Le parcours prépare une répétition locale HTTPS avec dix pièces synthétiques, un registre de mesures séparé, puis dix pièces clientes autorisées sur une instance qualifiée. Il précise les étapes des deux premières semaines et la décision de poursuite ; aucun gain de temps ni lancement client n'est déduit des seuls tests techniques.
+
 ## Préparer le lancement en production
 
 Le [guide de déploiement](docs/launch/03-DEPLOIEMENT.md) détaille les commandes, dans l'ordre. Il s'adresse au responsable technique d'un serveur Linux dédié au client, avec Docker Compose, un domaine HTTPS et une destination de sauvegarde indépendante.

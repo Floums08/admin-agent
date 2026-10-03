@@ -1,4 +1,12 @@
-# Contrôle qualité — OCR et connecteurs, version 0.3
+# Contrôle qualité — pilote factures, version 0.4
+
+Date : **3 octobre 2026**. Le [rapport de revue indépendante du pilote](QA-PILOT-2026-10-03.md) décrit les vérifications du lancement local privé, des dix factures synthétiques et du registre de mesures. Le [guide opératoire](launch/08-PILOTE-FACTURES.md) sépare cette répétition de la qualification du premier client. Aucun résultat de test ne mesure une économie de temps humain ou ne constitue une mise en service cliente.
+
+Vérification locale : **246 tests Python réussis sans test ignoré** sous Python 3.12.14, dont 42 nouveaux tests du kit pilote. Les dix documents synthétiques ont réellement traversé l'extraction native/OCR puis le contrôle avec une revue simulée utilisant le corrigé séparé. Les **35 scénarios DOM/API** existants passent. Les commandes du guide ont été rejouées, sans enregistrer de temps humain inventé ; les originaux, secrets et registres générés restent hors publication.
+
+La CI comprend désormais une recette du Compose pilote complet : Caddy, application authentifiée et worker OCR, certificat local vérifié, port lié à la boucle locale, MFA, original conservé, extraction française et confirmation explicite. Son exécution doit être constatée sur le commit utilisé ; Docker n'est pas disponible dans l'environnement local de développement de cette livraison.
+
+## Résultats précédents — OCR et connecteurs, version 0.3
 
 Date : **2 octobre 2026**. Tous les documents, comptes et entreprises utilisés sont synthétiques. Aucun compte Nextcloud/Dolibarr réel, aucune messagerie, banque ou administration n'a été connecté. Aucun message client n'a été envoyé.
 

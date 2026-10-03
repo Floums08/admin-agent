@@ -4,6 +4,8 @@ Version du 2 octobre 2026. Ce guide prépare un **service administratif opéré*
 
 La présence du code, d'un conteneur ou d'une CI verte ne signifie pas qu'un client est lancé. Le lancement est acquis seulement après déploiement sur l'hébergement choisi, recette sur cette instance, restauration prouvée et décision de lancement enregistrée. Aucune infrastructure cliente, donnée réelle, commande d'achat ou prise de contact n'est créée par cette documentation.
 
+**Pour commencer par un processus concret : suivre le [pilote collecte et contrôle de factures](08-PILOTE-FACTURES.md).** Il fournit la répétition locale sur dix pièces fictives, la mesure de qualité et de temps, puis le passage à dix pièces autorisées. Le pilote opérationnel reste limité à trente dossiers cumulés, avec bilan en fin de première puis de deuxième semaine.
+
 ## Le parcours, dans l'ordre
 
 | Étape | Ce que tu fais | Résultat indispensable | Guide |

@@ -1,6 +1,6 @@
 # Backlog priorisé
 
-Priorités révisées après ajout de l'OCR local et des connecteurs gratuits le 2 octobre 2026. Les estimations sont qualitatives et ne constituent pas un devis.
+Priorités révisées pour préparer le pilote de collecte et contrôle de factures le 3 octobre 2026. Les estimations sont qualitatives et ne constituent pas un devis.
 
 ## Livré pour préparer le premier client
 
@@ -9,6 +9,8 @@ Mode production séparé, comptes nominatifs avec TOTP obligatoire, rôles serve
 Le [parcours de lancement client](launch/00-START-HERE.md) comprend qualification, responsabilités, déploiement, recette, exploitation et décision finale. Le déploiement chez un hébergeur, le certificat public, la sauvegarde hors serveur et les accords du premier client restent à réaliser sur l'environnement retenu.
 
 L'import PDF/PNG/JPEG, l'extraction Poppler/Tesseract isolée avec sources par page et coordonnées, la correction et confirmation des champs, ainsi que les connecteurs CLI dossier local, CSV, Nextcloud/WebDAV et Dolibarr sont livrés. Ils n'activent aucun compte distant. Leur [guide](launch/07-OCR-ET-CONNECTEURS.md) détaille les plafonds et la recette. La qualité sur les documents du client et le temps de revue restent à mesurer avant engagement commercial.
+
+Le [pilote factures](launch/08-PILOTE-FACTURES.md) organise maintenant la prochaine étape : répétition locale sur dix pièces synthétiques, qualification de dix pièces réelles autorisées, observations explicites et décision après deux semaines. Le registre de mesures sépare les cohortes synthétiques et clientes ; ses rapports ne constituent pas une autorisation de lancement. Le plafond opérationnel proposé est de trente dossiers cumulés pour ce pilote, dans les limites techniques existantes.
 
 ## Avant d'ouvrir un client réel
 
@@ -19,6 +21,7 @@ L'import PDF/PNG/JPEG, l'extraction Poppler/Tesseract isolée avec sources par p
 | Priorité | Évolution | Motif | Critères de sortie | Effort relatif |
 |---|---|---|---|---|
 | P0 avant chaque lancement | Recette de l'instance et exploitation réelle | Les briques de sécurité sont livrées, l'environnement client ne l'est pas | HTTPS réel, MFA enrôlé, restauration depuis stockage indépendant, responsabilités approuvées | Moyen |
+| P0 prochain lot | Exécuter et mesurer le pilote factures | Les outils et scénarios doivent être confrontés au travail réel autorisé | Dix cas, preuves par champ, temps réellement observés, exceptions et bilan de décision documentés | Moyen |
 | P0 avant saturation | Pagination, archivage et conservation opérationnelle | La capacité initiale est de 100 dossiers cumulés | Purge/archivage contrôlés, restitution testée, traçabilité et charge mesurée avant augmentation | Élevé |
 | P0 avant documents réels | Évaluer l'OCR sur un lot indépendant autorisé | Les tests synthétiques ne mesurent pas les scans réels | Exactitude champs critiques, abstention, langues, photos inclinées et temps de correction mesurés | Moyen |
 | P1 | Aperçu visuel sécurisé et rapprochement des zones | La version livrée affiche texte/page/coordonnées et télécharge l'original | Rendu isolé et borné, champ + image côte à côte, mobile et accessibilité vérifiés | Moyen |
