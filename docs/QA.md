@@ -4,7 +4,7 @@ Date : **3 octobre 2026**. Le [rapport de revue indépendante du pilote](QA-PILO
 
 Vérification locale : **246 tests Python réussis sans test ignoré** sous Python 3.12.14, dont 42 nouveaux tests du kit pilote. Les dix documents synthétiques ont réellement traversé l'extraction native/OCR puis le contrôle avec une revue simulée utilisant le corrigé séparé. Les **35 scénarios DOM/API** existants passent. Les commandes du guide ont été rejouées, sans enregistrer de temps humain inventé ; les originaux, secrets et registres générés restent hors publication.
 
-La CI comprend désormais une recette du Compose pilote complet : Caddy, application authentifiée et worker OCR, certificat local vérifié, port lié à la boucle locale, MFA, original conservé, extraction française et confirmation explicite. Son exécution doit être constatée sur le commit utilisé ; Docker n'est pas disponible dans l'environnement local de développement de cette livraison.
+La [CI du code du pilote](https://github.com/Floums08/admin-agent/actions/runs/37126689622), commit `271fa46cb8380f4786fd2d6a1845b9296ec27ab2`, a terminé ses **six jobs avec succès** : Python 3.11/3.12/3.13, interface et navigateur réel, images de production et audit des dépendances. La recette du Compose pilote complet a réussi avec Caddy, application authentifiée et worker OCR, certificat local vérifié, port effectivement lié à la boucle locale, MFA, original conservé, extraction française et confirmation explicite. La restauration restic chiffrée avec original et empreinte vérifiés a aussi réussi. Ces contrôles Docker ont été exécutés dans GitHub Actions, Docker étant absent de l'environnement local de développement.
 
 ## Résultats précédents — OCR et connecteurs, version 0.3
 
