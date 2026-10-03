@@ -35,11 +35,11 @@ class LocalPilotTests(unittest.TestCase):
                                "ADMIN_AGENT_DB": "/data/admin-agent.sqlite3", "ADMIN_AGENT_SESSION_SECRET_FILE": "/run/secrets/session_secret",
                                "ADMIN_AGENT_AI_ENABLED": "0", "ADMIN_AGENT_OCR_URL": "http://ocr:8766"}}
         ocr = {**common, "networks": {"documents": {}}, "image": marker["ocr_image"], "user": "10002:10002"}
-        proxy = {**common, "networks": {"private": {}},
+        proxy = {**common, "networks": {"private": {}, "edge": {}},
                  "ports": [{"host_ip": "127.0.0.1", "published": "8443", "target": 443, "protocol": "tcp"}],
                  "volumes": [{"source": str(pilot.ROOT / "deploy/Caddyfile.pilot"), "target": "/etc/caddy/Caddyfile", "read_only": True}]}
         model = {"services": {"app": app, "ocr": ocr, "proxy": proxy},
-                 "networks": {"private": {"internal": True}, "documents": {"internal": True}},
+                 "networks": {"private": {"internal": True}, "documents": {"internal": True}, "edge": {}},
                  "secrets": {"session_secret": {"file": str(self.directory / "secrets/session_secret")}}}
         return marker, config, model
 
@@ -135,7 +135,10 @@ class LocalPilotTests(unittest.TestCase):
             "public binding": lambda value: value["services"]["proxy"]["ports"][0].update(host_ip="0.0.0.0"),
             "production port appended": lambda value: value["services"]["proxy"]["ports"].append({"published": "80", "target": 80}),
             "worker port": lambda value: value["services"]["ocr"].update(ports=[{"published": "8766", "target": 8766}]),
-            "proxy internet": lambda value: value["services"]["proxy"]["networks"].update(edge={}),
+            "application internet": lambda value: value["services"]["app"]["networks"].update(edge={}),
+            "worker internet": lambda value: value["services"]["ocr"]["networks"].update(edge={}),
+            "proxy without bridge": lambda value: value["services"]["proxy"]["networks"].pop("edge"),
+            "proxy bridge internal": lambda value: value["networks"]["edge"].update(internal=True),
             "internal network disabled": lambda value: value["networks"]["documents"].update(internal=False),
             "worker credentials": lambda value: value["services"]["ocr"].update(secrets=["session_secret"]),
             "root application": lambda value: value["services"]["app"].update(user="0:0"),

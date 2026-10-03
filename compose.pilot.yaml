@@ -10,6 +10,8 @@ services:
         published: "${PILOT_PORT:?}"
         host_ip: 127.0.0.1
         protocol: tcp
-    networks: !override [private]
+    # Docker needs a normal bridge for the loopback-published port. Only the
+    # proxy joins edge; the app and OCR worker keep their internal-only networks.
+    networks: !override [private, edge]
     volumes:
       - ./deploy/Caddyfile.pilot:/etc/caddy/Caddyfile:ro

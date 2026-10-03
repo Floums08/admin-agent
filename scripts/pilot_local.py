@@ -179,15 +179,13 @@ def validate_compose(model, directory, marker, config):
         services = model["services"]
         if set(services) != {"app", "ocr", "proxy"}:
             raise ValueError()
-        used_networks = set()
         for name, service in services.items():
             if (service.get("privileged") or service.get("network_mode") or service.get("pid") or service.get("ipc")
                     or not service.get("read_only") or "ALL" not in service.get("cap_drop", [])
                     or "no-new-privileges:true" not in service.get("security_opt", [])):
                 raise ValueError()
             networks = set(service["networks"])
-            used_networks |= networks
-            expected = {"app": {"private", "documents"}, "ocr": {"documents"}, "proxy": {"private"}}[name]
+            expected = {"app": {"private", "documents"}, "ocr": {"documents"}, "proxy": {"private", "edge"}}[name]
             if networks != expected:
                 raise ValueError()
             ports = service.get("ports", [])
@@ -197,7 +195,11 @@ def validate_compose(model, directory, marker, config):
                     or str(ports[0].get("published")) != str(marker["port"]) or ports[0].get("target") != 443
                     or ports[0].get("protocol", "tcp") != "tcp"):
                 raise ValueError()
-        if any(model["networks"][network].get("internal") is not True for network in used_networks):
+        if any(model["networks"][network].get("internal") is not True for network in ("private", "documents")):
+            raise ValueError()
+        # A proxy connected exclusively to internal networks may be healthy but
+        # unreachable on Docker's published host port. App/OCR cannot join edge.
+        if model["networks"]["edge"].get("internal") is True:
             raise ValueError()
         app, ocr, proxy = (services[name] for name in ("app", "ocr", "proxy"))
         if app["image"] != marker["app_image"] or ocr["image"] != marker["ocr_image"]:

@@ -62,6 +62,22 @@ def main():
             enrollment = json.loads(enrollment_path.read_text())
             command(sys.executable, script, "up", "--directory", str(directory), "--no-build")
             command(sys.executable, script, "certificate", "--directory", str(directory))
+            containers = command("docker", "ps", "--filter", f"label=com.docker.compose.project={project}", "--format", "{{.ID}}").split()
+            assert len(containers) == 3
+            for container in containers:
+                metadata = json.loads(command("docker", "inspect", container))[0]
+                service = metadata["Config"]["Labels"]["com.docker.compose.service"]
+                bindings = metadata["HostConfig"]["PortBindings"] or {}
+                if service == "proxy":
+                    expected_binding = {"443/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(port)}]}
+                    assert bindings == expected_binding
+                    effective = {key: value for key, value in metadata["NetworkSettings"]["Ports"].items() if value}
+                    assert effective == expected_binding, "Docker did not actually publish the loopback TLS port."
+                else:
+                    assert not bindings
+                    for network in metadata["NetworkSettings"]["Networks"]:
+                        assert json.loads(command("docker", "network", "inspect", network))[0]["Internal"] is True
+                assert metadata["HostConfig"]["ReadonlyRootfs"] is True
             context = ssl.create_default_context(cafile=str(directory / "tls/pilot-root-ca.crt"))
             assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=context))
@@ -137,17 +153,6 @@ def main():
             assert request(f"/api/documents/{document_id}/original", cookie=cookie)[0] == original
             request("/api/logout", "POST", {}, cookie, csrf)
             request("/api/tasks", cookie=cookie, expected=401)
-            containers = command("docker", "ps", "--filter", f"label=com.docker.compose.project={project}", "--format", "{{.ID}}").split()
-            assert len(containers) == 3
-            for container in containers:
-                metadata = json.loads(command("docker", "inspect", container))[0]
-                service = metadata["Config"]["Labels"]["com.docker.compose.service"]
-                bindings = metadata["HostConfig"]["PortBindings"] or {}
-                if service == "proxy":
-                    assert bindings == {"443/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(port)}]}
-                else:
-                    assert not bindings
-                assert metadata["HostConfig"]["ReadonlyRootfs"] is True
             print("PASS: actual local pilot Compose, verified TLS, loopback-only port, MFA refusal/login, empty database, synthetic pack, real French OCR, review requirement, original integrity and logout. No customer go-live or human timings measured.")
         finally:
             if project:
