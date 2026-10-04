@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import re
+import unicodedata
 
 from .catalog import context_manifest, get_skill
 
@@ -277,6 +278,129 @@ def bookkeeping(task, today):
     return result.value
 
 
+def expense_duplicates(task, other_tasks):
+    """Potential repeated receipt across claimants; no finding of fraud or payment."""
+    def fingerprint(value):
+        if value.get("skill_id") != "expense-review":
+            return None
+        payload = value.get("payload", {})
+        merchant, when, amount, currency = (payload.get(key) for key in ("merchant", "expense_date", "total_amount", "currency"))
+        if not all(isinstance(item, str) and item.strip() for item in (merchant, when, amount, currency)):
+            return None
+        if not MONEY.fullmatch(amount) or not DATE.fullmatch(when) or currency not in CURRENCIES:
+            return None
+        try:
+            date.fromisoformat(when)
+            canonical_merchant = " ".join(unicodedata.normalize("NFKC", merchant).casefold().split())
+            return canonical_merchant, when, str(Decimal(amount).normalize()), currency
+        except (ValueError, InvalidOperation):
+            return None
+    own = fingerprint(task)
+    if own is None:
+        return []
+    return sorted({other["id"] for other in other_tasks if isinstance(other, dict) and isinstance(other.get("id"), str)
+                   and other["id"] != task.get("id") and fingerprint(other) == own})
+
+
+def expense(task, today, duplicate_ids=None):
+    """One original receipt, its business context and explicit human attestations."""
+    result = CheckResult()
+    payload = task["payload"]
+    for field in ("merchant", "employee_ref", "business_purpose", "policy_ref"):
+        result.text(payload, field)
+    when = result.date(payload, "expense_date")
+    total = result.amount(payload, "total_amount")
+    currency = result.currency(payload)
+    for field, choices in (("category", {"travel", "meals", "lodging", "office", "other"}),
+                           ("payment_method", {"employee_card", "company_card", "cash", "bank_transfer", "other"})):
+        value = result.text(payload, field)
+        if value is not None and value not in choices:
+            result.finding("error", "Valeur non prise en charge : " + field + ".", field)
+    states = {field: result.boolean(payload, field) for field in ("paid_by_company", "reimbursed", "business_only", "policy_confirmed", "payment_confirmed")}
+    if total is not None and total <= 0:
+        result.finding("error", "Le total du reçu doit être strictement positif ; aucun montant à préparer sur une dépense nulle.", "total_amount")
+    if when and when > today:
+        result.finding("error", "La date de dépense est future : vérifier le justificatif.", "expense_date")
+    for field, blocked_value, message in (
+        ("paid_by_company", True, "Dépense déclarée payée par l'entreprise : ne pas préparer un remboursement au demandeur."),
+        ("reimbursed", True, "Dépense déclarée déjà remboursée : vérifier le suivi pour éviter un double traitement."),
+        ("business_only", False, "Dépense personnelle ou mixte : une ventilation vérifiée est nécessaire hors de ce contrôle simple."),
+        ("policy_confirmed", False, "La politique interne applicable n'est pas confirmée ; décision du responsable nécessaire."),
+        ("payment_confirmed", False, "Le paiement de la dépense n'est pas confirmé ; un reçu seul ne suffit pas à le prouver."),
+    ):
+        if states[field] is blocked_value:
+            result.finding("error", message, field)
+    if payload.get("payment_method") == "company_card" and states["paid_by_company"] is False:
+        result.finding("error", "Carte entreprise et paiement déclaré hors entreprise se contredisent.", "payment_method")
+    if "policy_limit" in payload:
+        limit = result.amount(payload, "policy_limit")
+        policy_currency = result.text(payload, "policy_currency")
+        if policy_currency != currency:
+            result.finding("error", "Le plafond doit être exprimé dans la devise du reçu ; aucune conversion automatique.", "policy_currency")
+        elif total is not None and limit is not None:
+            within = total <= limit
+            result.check("expense_policy_limit", within, "Comparaison avec le plafond fourni dans la même devise.")
+            if not within:
+                result.finding("error", "Le total dépasse le plafond déclaré ; décision du responsable nécessaire.", "policy_limit")
+    else:
+        result.finding("warning", "Aucun plafond chiffré fourni : aucun respect d'un plafond n'est attesté.", "policy_limit")
+        if "policy_currency" in payload:
+            result.finding("error", "Une devise de plafond sans montant ne définit pas une limite exploitable.", "policy_limit")
+    source = payload.get("_document_source")
+    receipt_valid = (isinstance(source, dict) and source.get("human_verified") is True and
+                     isinstance(source.get("document_id"), str) and bool(source["document_id"]) and
+                     isinstance(source.get("sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", source["sha256"]) is not None and
+                     type(source.get("extraction_version")) is int and source["extraction_version"] > 0 and
+                     isinstance(source.get("fields"), dict))
+    if receipt_valid:
+        evidence_fields = source["fields"]
+        if "receipt_reviews" in source:
+            reviews = source["receipt_reviews"]
+            if (not isinstance(reviews, list) or not reviews or not isinstance(reviews[-1], dict)
+                    or reviews[-1].get("human_verified") is not True or not isinstance(reviews[-1].get("fields"), dict)):
+                receipt_valid = False
+            else:
+                evidence_fields = reviews[-1]["fields"]
+        for field in ("merchant", "expense_date", "total_amount", "currency"):
+            evidence = evidence_fields.get(field)
+            if not isinstance(evidence, dict) or evidence.get("reviewed_value") != payload.get(field):
+                receipt_valid = False
+    result.check("expense_receipt", bool(receipt_valid), "Original conservé et champs du reçu explicitement vérifiés ; aucune authenticité fiscale certifiée.")
+    if not receipt_valid:
+        result.finding("error", "Importer le reçu par Documents puis confirmer marchand, date, total et devise. Les champs modifiés doivent être revus sur l'original.", "_document_source")
+    if {"paid_amount", "remaining_amount", "amount_paid", "credit_amount", "partial_payment", "has_partial_payment"}.intersection(payload):
+        result.finding("error", "Un paiement partiel, un solde ou un avoir est déclaré : rapprocher la dépense hors de ce contrôle simple.", "paid_amount")
+    flags = source.get("document_risk_flags") if isinstance(source, dict) else None
+    if not isinstance(flags, list):
+        result.finding("error", "Les marqueurs de la pièce source sont absents ; revue documentaire requise.", "_document_source.document_risk_flags")
+    else:
+        for flag in flags:
+            code = flag.get("code") if isinstance(flag, dict) else None
+            if code in ("multiple_tax_rates", "special_vat"):
+                result.finding("info", "TVA particulière ou plusieurs taux observés : la revue porte seulement sur le total brut, sans TVA déductible calculée.", "vat_amount")
+            else:
+                result.finding("error", "La pièce comporte un marqueur nécessitant une revue spécialisée : " + (code if isinstance(code, str) else "inconnu") + ".", "_document_source.document_risk_flags")
+    if duplicate_ids is None or not isinstance(duplicate_ids, list) or any(not isinstance(item, str) for item in duplicate_ids):
+        result.finding("error", "Le contrôle courant des doublons n'a pas été exécuté.", "expense_duplicates")
+        result.check("expense_duplicates", False, "Comparer aux dossiers actuels de cette instance.")
+    elif duplicate_ids:
+        result.finding("error", "Doublon possible de marchand, date, total et devise : rapprocher les dossiers " + ", ".join(duplicate_ids[:10]) + ".", "expense_duplicates")
+        result.check("expense_duplicates", False, "Même reçu possible, y compris avec un autre demandeur ; aucune fraude présumée.")
+    else:
+        result.check("expense_duplicates", True, "Aucun dossier de mêmes marchand, date, total et devise dans l'instance au moment du contrôle.")
+    if "vat_amount" in payload:
+        vat = result.amount(payload, "vat_amount")
+        if vat is not None and total is not None and vat > total:
+            result.finding("error", "Le montant de TVA observé dépasse le total ; contrôler le reçu.", "vat_amount")
+    result.finding("info", "Aucune TVA déductible, règle fiscale, indemnité kilométrique, conversion ou somme à rembourser n'est calculée. Aucun paiement exécuté.")
+    result.value["summary"] = "Note de frais bloquée : justificatif ou décision à compléter." if result.blocked() else "Reçu et contexte préparés pour la décision humaine, sans remboursement automatique."
+    if not result.blocked():
+        result.value["draft"] = (f"NOTE INTERNE — {payload['employee_ref']}\nMarchand : {payload['merchant']}\nDate : {when.isoformat()}\n"
+                                 f"Total brut observé : {total.quantize(CENT)} {currency}\nMotif : {payload['business_purpose']}\n"
+                                 f"Politique déclarée : {payload['policy_ref']}\nDécision du responsable requise. Aucun remboursement ni traitement fiscal exécuté.")
+    return result.value
+
+
 def triage(task, today):
     result = CheckResult()
     context = task["description"].strip()
@@ -334,7 +458,7 @@ def guided(task, today):
     return result.value
 
 
-def analyze(task, today=None):
+def analyze(task, today=None, expense_duplicate_ids=None):
     today = today or date.today()
     skill_id = task["skill_id"]
     if skill_id == "invoice-check":
@@ -345,6 +469,8 @@ def analyze(task, today=None):
         result = bookkeeping(task, today)
     elif skill_id == "admin-triage":
         result = triage(task, today)
+    elif skill_id == "expense-review":
+        result = expense(task, today, expense_duplicate_ids)
     else:
         result = guided(task, today)
     result["context"] = context_manifest(task)

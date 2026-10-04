@@ -4,6 +4,7 @@ Usage: python scripts/container_smoke.py --image admin-agent:ci --ocr-image admi
 Requires Docker, requirements-production.txt and Pillow. Never targets a live client.
 """
 import argparse
+from datetime import date, timedelta
 import hashlib
 import io
 from http.cookies import SimpleCookie
@@ -233,9 +234,54 @@ def main():
         repeated, _ = request(f'/api/documents/{document_id}/create-task', 'POST', draft, cookie, csrf)
         assert repeated['task']['id'] == linked['task']['id']
         assert len(request('/api/tasks', cookie=cookie)[0]['tasks']) == 2
+        # Real built-image finance path. Dates stay valid when CI runs later.
+        today = date.today()
+        invoice_input = {'title': 'Facture finance synthétique', 'description': 'Recette conteneur, sans client réel.',
+                         'country': 'FR', 'skill_id': 'invoice-check', 'payload': {
+                             'invoice_number': 'FIN-CI-001', 'supplier': 'Fournisseur synthétique', 'customer': 'Client synthétique',
+                             'issue_date': (today - timedelta(days=5)).isoformat(), 'due_date': (today + timedelta(days=30)).isoformat(),
+                             'net_amount': '1000.00', 'vat_rate': '20.00', 'vat_amount': '200.00', 'total_amount': '1200.00',
+                             'currency': 'EUR', 'paid': False, 'disputed': False}}
+        created, _ = request('/api/tasks', 'POST', invoice_input, cookie, csrf, 201)
+        finance_task = created['task']
+        analyzed, _ = request(f'/api/tasks/{finance_task["id"]}/analyze', 'POST', {}, cookie, csrf)
+        reviewed, _ = request(f'/api/tasks/{finance_task["id"]}/review', 'POST',
+                              {'decision': 'approve', 'note': 'Contrôles synthétiques effectués', 'version': analyzed['task']['version']}, cookie, csrf)
+        registered, _ = request('/api/finance/invoices/register', 'POST', {
+            'task_id': finance_task['id'], 'task_version': reviewed['task']['version'], 'direction': 'receivable',
+            'opening_paid_amount': '0.00', 'opening_as_of': (today - timedelta(days=1)).isoformat(),
+            'opening_confirmed': True, 'evidence_ref': 'CI-OPENING-SYNTHETIC', 'disputed': False}, cookie, csrf)
+        invoice = registered['invoice']
+        simulation, _ = request('/api/finance/factoring/simulate', 'POST', {
+            'invoice_id': invoice['id'], 'invoice_version': invoice['version'], 'advance_rate': '80.00',
+            'fee_rate': '2.00', 'annual_interest_rate': '12.00', 'fixed_fee': '10.00',
+            'funding_date': today.isoformat(), 'day_basis': 360}, cookie, csrf)
+        assert simulation['simulation']['advance'] == '960.00'
+        assert simulation['simulation']['reserve'] == '240.00'
+        assert simulation['simulation']['net_cash'] == '916.40'
+        bank = {'account_ref': 'CI-SYNTHETIC', 'csv_text': 'transaction_id,date,amount,currency,reference\nCI-BANK-1,' + today.isoformat() + ',600.00,EUR,FIN-CI-001\n'}
+        preview, _ = request('/api/finance/bank/preview', 'POST', bank, cookie, csrf)
+        bank['preview_digest'] = preview['preview']['preview_digest']
+        imported, _ = request('/api/finance/bank/import', 'POST', bank, cookie, csrf)
+        assert imported['import']['created'] == 1
+        duplicate, _ = request('/api/finance/bank/import', 'POST', bank, cookie, csrf)
+        assert duplicate['import']['created'] == 0
+        transaction = imported['import']['transactions'][0]
+        allocation = {'invoice_id': invoice['id'], 'invoice_version': invoice['version'],
+                      'transaction_id': transaction['id'], 'transaction_version': transaction['version'],
+                      'amount': '600.00', 'evidence_ref': 'CI-PAYMENT-SYNTHETIC', 'idempotency_key': 'CI-ALLOCATION-1'}
+        request('/api/finance/allocations/confirm', 'POST', allocation, reader_cookie, reader['csrf_token'], 403)
+        request('/api/finance/allocations/confirm', 'POST', allocation, cookie, csrf)
+        request('/api/finance/allocations/confirm', 'POST', allocation, cookie, csrf, 409)
+        ledger, _ = request('/api/finance/invoices', cookie=cookie)
+        assert ledger['invoices'][0]['remaining_amount'] == '600.00'
+        assert ledger['invoices'][0]['payment_status'] == 'partial'
+        exported, _ = request('/api/export', cookie=cookie)
+        assert len(exported['finance']['allocations']) == 1
+        assert exported['finance']['bank_imports'][0]['csv_text'] == bank['csv_text']
         request('/api/logout', 'POST', {}, cookie, csrf)
         request('/api/tasks', cookie=cookie, expected=401)
-        print('Production and OCR images: isolated internal network, non-root/read-only runtime, bounded worker, health/readiness, mandatory MFA, CSRF, named roles, dossier analysis, export, real PNG OCR, original integrity, human confirmation, idempotency and logout passed.')
+        print('Production and OCR images: isolated runtime, MFA/CSRF/roles, real PNG OCR, original integrity, human confirmation, finance registration, factoring estimate, CSV import/replay, partial reconciliation, export and logout passed.')
     except Exception:
         for container, active in ((name, started), (worker_name, worker_started)):
             if active:

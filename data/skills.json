@@ -87,20 +87,21 @@
     {
       "id": "expense-review",
       "name": "Revue des notes de frais",
-      "description": "Guider la vérification des reçus et de la politique interne, sans décider du traitement fiscal.",
+      "description": "Contrôler un reçu et son contexte professionnel après revue humaine, sans remboursement ni déductibilité fiscale.",
       "priority": "P1",
       "agent": "Contrôle documentaire",
       "inputs": [
-        "Lignes de dépenses",
-        "Références des reçus",
-        "Politique interne datée"
+        "Reçu original confirmé : marchand, date, total et devise",
+        "Référence du demandeur, motif et catégorie",
+        "Paiement, payeur, remboursement et caractère professionnel explicitement confirmés",
+        "Politique interne référencée ; plafond facultatif dans la même devise"
       ],
       "outputs": [
-        "Checklist de frais",
-        "Écarts à examiner",
-        "Décisions requises"
+        "Contrôles documentaires et de politique déclarée",
+        "Doublons potentiels et décisions requises",
+        "Note interne pour revue, aucun remboursement"
       ],
-      "status": "guided",
+      "status": "implemented",
       "path": "skills/expense-review/SKILL.md"
     },
     {

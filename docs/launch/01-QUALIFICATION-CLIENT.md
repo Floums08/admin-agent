@@ -6,7 +6,7 @@
 
 | Question | Pourquoi la poser | Critère de décision |
 |---|---|---|
-| Quelle tâche absorbe du temps chaque semaine ? | Choisir un processus observable | Un résultat précis et répétitif, couvert par un des quatre workflows |
+| Quelle tâche absorbe du temps chaque semaine ? | Choisir un processus observable | Un résultat précis et répétitif, couvert par un des cinq workflows ou le module financier documenté |
 | Combien de dossiers par semaine, et quels pics ? | Prévoir charge, délais et prix | Volume et durée compatibles avec 100 dossiers cumulés, recette comprise, et la capacité de revue |
 | Qui fait le travail et combien de temps aujourd'hui ? | Établir une base de comparaison | Mesure sur quelques dossiers, pas une impression globale |
 | Quel logiciel détient la vérité et où sont les originaux ? | Éviter deux comptabilités ou deux états de paiement | Source unique désignée pour chaque donnée importante |

@@ -8,7 +8,9 @@
     "test:auth-ui": "node tests/ui_auth.cjs",
     "test:browser": "node tests/browser_smoke.cjs",
     "test:documents-ui": "node tests/ui_documents.cjs",
-    "test:documents-browser": "node tests/browser_documents.cjs"
+    "test:documents-browser": "node tests/browser_documents.cjs",
+    "test:finance-ui": "node tests/ui_finance.cjs",
+    "test:finance-browser": "node tests/browser_finance.cjs"
   },
   "devDependencies": {
     "linkedom": "0.18.12",

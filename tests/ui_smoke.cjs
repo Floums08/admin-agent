@@ -63,7 +63,7 @@ function passed(label) { count++; console.log(`PASS ${count}: ${label}`); }
   run("state.query='';state.page='skills';renderPage()");
   assert.equal(document.querySelectorAll('.skill-card').length,12);
   run("state.skillStatus='guided';updateSkillsList()");
-  assert.equal(document.querySelectorAll('.skill-card').length,8);passed('Payload search and 12-skill maturity filters');
+  assert.equal(document.querySelectorAll('.skill-card').length,7);passed('Payload search and 12-skill maturity filters');
 
   run("openCreate('invoice-check');prefill()");
   document.querySelector('#task-title').value='<img src=x onerror=alert(1)> QA facture';

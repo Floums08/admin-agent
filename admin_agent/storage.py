@@ -281,6 +281,11 @@ class Store:
                 raise AppError("Ce dossier comporte des blocages ou doit être réanalysé avant validation.", 409, "approval_blocked")
             if decision == "approve" and task["result"].get("analyzed_on") != datetime.now().date().isoformat():
                 raise AppError("Les contrôles de dates doivent être actualisés. Relancez l'analyse avant validation.", 409, "analysis_stale")
+            if decision == "approve" and task["skill_id"] == "expense-review":
+                from .engine import expense_duplicates
+                others = [json.loads(row["body"]) for row in connection.execute("SELECT body FROM tasks")]
+                if expense_duplicates(task, others):
+                    raise AppError("Un doublon potentiel de note de frais est présent. Relancez l'analyse et rapprochez les justificatifs.", 409, "expense_duplicate_detected")
             task.update(status="ready" if decision == "approve" else "rejected", updated_at=now(), version=task["version"] + 1)
             connection.execute("UPDATE tasks SET body=? WHERE id=?", (encoded(task), task_id))
             self._event(connection, task_id, "task.reviewed", {"decision": decision, "note": note.strip(), "actor": "local_operator",

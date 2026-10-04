@@ -1,6 +1,6 @@
 # Architecture des agents et des SKILLs
 
-Version de conception : 2 octobre 2026. Le code livré est un **pilote local pour une entreprise**. Il n'est pas prêt pour héberger des dossiers de plusieurs clients. Les agents ci-dessous sont des responsabilités et des regroupements de compétences ; le pilote n'exécute pas six agents autonomes en arrière-plan.
+Version du 4 octobre 2026. Le code propose une démonstration locale et un mode de production à **instance et base isolées par entreprise**. Le déploiement et la recette chez le client restent nécessaires. Les agents ci-dessous sont des responsabilités et des regroupements de compétences ; le pilote n'exécute pas six agents autonomes en arrière-plan.
 
 ## Six spécialistes, douze procédures
 
@@ -8,7 +8,7 @@ Version de conception : 2 octobre 2026. Le code livré est un **pilote local pou
 |---|---|---|---|
 | Contrôle documentaire | `invoice-check` | P0 | Champs, dates et arithmétique d'une facture simple structurée |
 | Contrôle documentaire | `bookkeeping-pack` | P0 | Inventaire mensuel, doublons possibles, complétude déclarée et montants par devise |
-| Contrôle documentaire | `expense-review` | P1 | Guide de préparation, contrôles métier non implémentés |
+| Contrôle documentaire | `expense-review` | P1 | Reçu OCR confirmé, contexte professionnel, politique déclarée et recherche de doublons ; aucun remboursement ni TVA déductible calculés |
 | Encaissements et trésorerie | `receivables-followup` | P0 | Vérifications de facture, paiement/litige/échéance et brouillon local |
 | Encaissements et trésorerie | `cash-visibility` | P1 | Guide de scénarios, contrôles métier non implémentés |
 | Bureau administratif | `admin-triage` | P0 | Orientation par mots-clés, incertitude explicite |
@@ -19,7 +19,9 @@ Version de conception : 2 octobre 2026. Le code livré est un **pilote local pou
 | Achats et contrats | `contract-watch` | P1 | Guide d'extraction des engagements, aucune interprétation juridique validée |
 | Coordination RH | `hr-onboarding` | P2 | Guide d'arrivée d'un salarié déjà choisi, aucune décision RH automatique |
 
-`implemented` signifie que le sous-ensemble indiqué possède un moteur déterministe. Cela ne signifie ni OCR, ni conformité réglementaire complète, ni intégration métier. `guided` signifie que la procédure détaillée existe, mais que le backend bloque son approbation faute de contrôles automatisés implémentés. Le catalogue `data/skills.json` est la source commune de l'interface et du serveur.
+`implemented` signifie que le sous-ensemble indiqué possède un moteur déterministe : cinq workflows sont exécutables et sept restent guidés. Cela ne signifie ni conformité réglementaire complète ni intégration à un compte métier réel. `guided` signifie que la procédure détaillée existe, mais que le backend bloque son approbation faute de contrôles automatisés implémentés. Le catalogue `data/skills.json` est la source commune de l'interface et du serveur.
+
+L'OCR est un service isolé de préparation des champs, avec original conservé et confirmation humaine. Le registre financier est un module déterministe séparé : factures validées, mouvements CSV, affectations versionnées et simulations d'affacturage. Il ne constitue pas un agent bancaire autonome. Les données du registre ne mettent pas automatiquement à jour les observations du workflow `receivables-followup` ; son opérateur doit en vérifier la fraîcheur.
 
 ## Flux d'une demande
 
@@ -72,9 +74,9 @@ Ne pas afficher un coût en euros sans compteurs réels, modèle exact, grille t
 
 - **Déjà instrumenté :** manifeste du contexte local, empreinte du SKILL, volume de payload, absence d'autres tâches, contrôles exécutés et événements de revue. L'adaptateur IA ajoute modèle, fournisseur, empreinte du contexte, latence et usage retourné ; vérifier dans le code les champs conservés selon le mode.
 - **Avis IA :** les chemins `evidence_fields` doivent exister dans le dossier soumis. Ce contrôle prouve l'existence du champ, pas que le texte généré l'interprète correctement ; la revue humaine reste obligatoire.
-- **Procédure métier :** chaque skill demande un repère de pièce/page/ligne ou un champ de saisie, des hypothèses explicites et les informations manquantes. Le pilote ne lit pas automatiquement les originaux et ne peut inventer leur provenance.
+- **Procédure métier :** chaque skill demande un repère de pièce/page/ligne ou un champ de saisie, des hypothèses explicites et les informations manquantes. Pour les pièces importées, l'extraction conserve texte, page, coordonnées et empreinte de l'original ; l'opérateur confirme les valeurs avant leur utilisation.
 - **Règle nationale :** conserver organisme, URL, date de consultation, date d'effet lorsqu'elle est établie, champ d'application et justification liée à l'entreprise. Les guides FR/ES sont des points de départ vérifiés le 2 octobre 2026, pas une veille permanente.
-- **À développer avant industrialisation :** hachage et versionnement des pièces importées, extraction avec coordonnées de page, provenance attachée à chaque affirmation, chiffrement et stockage contrôlé, politique de conservation, droits/tenants, tests d'isolation et procédures de sauvegarde/restauration.
+- **Livré pour la préparation de production :** empreintes et versions des pièces, provenance des champs confirmés, rôles/MFA, isolation par instance, sauvegarde cohérente et restauration en quarantaine. **À valider chez chaque client :** hébergement, HTTPS, sauvegarde chiffrée hors hôte, politique de conservation, qualité documentaire réelle et responsabilités. L'archivage et la montée en volume restent à développer.
 
 Un score de confiance numérique non calibré n'améliore pas une preuve absente. Préférer « document consulté », « saisie déclarative », « contradiction » et « non vérifié ».
 

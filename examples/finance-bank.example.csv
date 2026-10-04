@@ -1,0 +1,4 @@
+transaction_id,date,amount,currency,reference
+DEMO-BANK-001,2026-10-02,400.00,EUR,DEMO-CLIENT-001 reglement partiel fictif
+DEMO-BANK-002,2026-10-03,800.00,EUR,DEMO-CLIENT-001 solde fictif
+DEMO-BANK-003,2026-10-03,-120.00,EUR,DEMO-FOURNISSEUR-001 reglement fictif

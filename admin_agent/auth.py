@@ -62,8 +62,12 @@ class AuthStore:
                     raise ValueError("La base appartient à une autre instance ou utilise une version incompatible.")
                 con.execute("UPDATE instance_identity SET client_name=? WHERE singleton=1", (client_name,))
             else:
-                if con.execute("SELECT count(*) FROM tasks").fetchone()[0]:
-                    raise ValueError("Une base locale contenant des dossiers ne peut pas être attribuée automatiquement à un client.")
+                business_tables = ("tasks", "documents", "finance_invoices", "finance_bank_transactions",
+                                   "finance_allocations", "finance_bank_imports", "finance_events")
+                existing_tables = {row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                if any(con.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone()
+                       for table in business_tables if table in existing_tables):
+                    raise ValueError("Une base locale contenant des données métier ne peut pas être attribuée automatiquement à un client.")
                 con.execute("INSERT INTO instance_identity VALUES (1,?,?,1)", (client_id, client_name))
             # Individual statements preserve the identity-binding transaction.
             for sql in (

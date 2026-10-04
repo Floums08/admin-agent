@@ -10,7 +10,7 @@ from .errors import AppError
 ROOT = Path(__file__).resolve().parent.parent
 MAX_SKILL_BYTES = 18_000
 MAX_PAYLOAD_BYTES = 32_000
-CORE_IDS = {"invoice-check", "receivables-followup", "bookkeeping-pack", "admin-triage"}
+CORE_IDS = {"invoice-check", "receivables-followup", "bookkeeping-pack", "admin-triage", "expense-review"}
 FALLBACK = [
     ("invoice-check", "Contrôle de facture"),
     ("receivables-followup", "Préparation des relances clients"),

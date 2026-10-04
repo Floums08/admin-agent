@@ -23,7 +23,20 @@ Le [guide de déploiement](docs/launch/03-DEPLOIEMENT.md) détaille les commande
 | Reprise sûre | Comptes restaurés désactivés ; renouvellement du mot de passe et du MFA avant réactivation |
 | Contrôles | Tests métier, permissions, restauration, parcours navigateur et construction du conteneur dans la CI |
 
-La production utilise les **quatre workflows déterministes**, complétés par l'import documentaire, l'OCR local et les connecteurs en lecture seule décrits ci-dessous. L'IA externe et les données de démonstration y sont désactivées. Les huit autres skills restent guidées. Le lancement initial est borné à **100 dossiers cumulés par instance**, avec des limites sur la taille des résultats et le nombre d'événements ; une capacité supérieure nécessite une évolution validée.
+La production utilise les **cinq workflows déterministes**, dont la préparation de notes de frais, complétés par le registre financier, l'import documentaire, l'OCR local et les connecteurs en lecture seule décrits ci-dessous. L'IA externe et les données de démonstration y sont désactivées. Les sept autres skills restent guidées. Le lancement initial est borné à **100 dossiers cumulés par instance**, avec des limites sur la taille des résultats et le nombre d'événements ; une capacité supérieure nécessite une évolution validée.
+
+## Suivre les factures, préparer le financement et les frais
+
+La version **0.5** ajoute une section **Finances** et un parcours **Notes de frais**. Le [guide d'utilisation](docs/launch/09-FINANCE-ET-FRAIS.md) décrit les étapes et la [recherche FR/ES](docs/research/04-finance-expenses.md) explique les choix de contrôle.
+
+| Fonction | Fonctionnement |
+|---|---|
+| Suivi clients et fournisseurs | Enregistrer une facture contrôlée et validée en interne, confirmer le solde d'ouverture, suivre échéance, solde et règlements partiels ; signaler une source modifiée |
+| Rapprochement bancaire | Charger un CSV, examiner l'aperçu puis confirmer l'import ; rapprocher explicitement les opérations et les factures, avec contrôle du sens, de la devise et du disponible ; annulation tracée |
+| Affacturage | Préparer les éléments à examiner et simuler avance, réserve, commissions, intérêts et trésorerie nette selon les paramètres saisis ; aucune offre ou éligibilité de financeur présumée |
+| OCR de notes de frais | Extraire les propositions du reçu, confirmer les champs et le contexte professionnel, contrôler la politique fournie et les risques de double remboursement ; aucune TVA récupérable ou exécution de remboursement calculée automatiquement |
+
+Les mouvements et allocations restent dans la base propre à l'entreprise. **Une suggestion de rapprochement n'est pas une confirmation et une avance du factor n'est pas un règlement du client.** L'import utilise un export bancaire fourni par l'utilisateur, sans abonnement d'agrégation ni connexion à une banque. Le [CSV fictif](examples/finance-bank.example.csv) permet de préparer un essai ; ses montants ne correspondent à aucune opération réelle. La connexion bancaire directe, les formats bancaires supplémentaires et les écritures dans un logiciel comptable restent à développer.
 
 ## Documents, OCR et connecteurs sans API payante
 
@@ -41,7 +54,7 @@ Le [guide OCR et connecteurs](docs/launch/07-OCR-ET-CONNECTEURS.md) contient les
 
 Les connecteurs s'exécutent par **CLI sur l'hôte** : aperçu par défaut, import explicite, aucun envoi ni synchronisation automatique. Les accès à un compte Nextcloud/Dolibarr réel restent à configurer et à tester pour chaque client. L'OCR ne transmet pas les documents à un fournisseur IA ; son service isolé n'a ni accès à Internet, ni base client, ni secrets. Les valeurs reconnues peuvent être fausses : elles ne prouvent ni un paiement ni l'absence de litige.
 
-Ces composants sont des logiciels libres sans facturation API à l'appel dans ce montage. **Serveur, stockage, sauvegardes et maintenance restent à financer.** Les formats XML de facturation électronique, les tableaux multi-taux et les relevés bancaires ne sont pas traités automatiquement. Voir aussi les [licences et notices](THIRD-PARTY-NOTICES.md).
+Ces composants sont des logiciels libres sans facturation API à l'appel dans ce montage. **Serveur, stockage, sauvegardes et maintenance restent à financer.** Les formats XML de facturation électronique, les calculs fiscaux multi-taux et l'OCR de relevés bancaires ne sont pas pris en charge. Le rapprochement utilise le CSV structuré décrit ci-dessus. Voir aussi les [licences et notices](THIRD-PARTY-NOTICES.md).
 
 Documents d'intégration : [qualification et informations à obtenir](docs/launch/01-QUALIFICATION-CLIENT.md), [données et responsabilités](docs/launch/02-DONNEES-ET-RESPONSABILITES.md), [recette client](docs/launch/04-RECETTE-CLIENT.md), [exploitation quotidienne et reprise](docs/launch/05-EXPLOITATION.md), [décision de lancement](docs/launch/06-GO-NO-GO.md). Le [formulaire fictif](examples/client-onboarding.example.json) est à compléter dans un espace privé, jamais dans ce dépôt public.
 
@@ -81,12 +94,13 @@ Ce mode de démonstration écoute uniquement en local. Il ne doit pas être publ
 | Préparation de suivi de créance | Brouillon interne sous conditions ; factures payées/contestées et données incohérentes traitées explicitement |
 | Dossier comptable | Index structuré, pièces manquantes et doublons potentiels ; les documents originaux ont un parcours d'import séparé |
 | Tri administratif | Qualification indicative à partir du texte |
-| Huit autres skills | Checklists guidées et instructions spécialisées ; pas huit automatismes achevés |
+| Notes de frais | Reçu original, champs confirmés, contexte professionnel, politique fournie et revue interne ; aucun remboursement exécuté |
+| Sept autres skills | Checklists guidées et instructions spécialisées ; pas sept automatismes achevés |
 | Avis IA optionnel | Adaptateur Responses + contexte borné + sortie contrôlée ; désactivé par défaut |
 | Traçabilité | Événements de création, analyse, correction et revue ; export JSON |
 | Tests et CI | Suite hors ligne, contrôles de compétences et workflow à chaque changement |
 
-Les données peuvent être saisies, importées par connecteur ou préparées depuis un original après revue de l'extraction. La connexion mail et bancaire reste à développer. Aucun client n'a été contacté. Aucune clé API, donnée réelle ou base de travail n'est publiée.
+Les données peuvent être saisies, importées par connecteur ou préparées depuis un original après revue de l'extraction. Les connexions directes à une messagerie ou à une banque restent à développer. Aucun client n'a été contacté. Aucune clé API, donnée réelle ou base de travail n'est publiée.
 
 ## Agents et compétences
 

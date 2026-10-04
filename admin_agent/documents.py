@@ -26,8 +26,9 @@ MAX_EXTRACTION_TOTAL = 20 * 1024 * 1024
 MAX_REVISIONS = 5
 LANGUAGES = {"eng", "fra", "spa", "fra+spa+eng"}
 MEDIA_TYPES = {"application/pdf", "image/png", "image/jpeg"}
-CANDIDATE_FIELDS = {"invoice_number", "supplier", "customer", "issue_date", "due_date", "net_amount", "vat_amount", "vat_rate", "total_amount", "currency"}
+CANDIDATE_FIELDS = {"invoice_number", "supplier", "customer", "issue_date", "due_date", "net_amount", "vat_amount", "vat_rate", "total_amount", "currency", "merchant", "expense_date"}
 REVIEW_FIELDS = CANDIDATE_FIELDS | {"paid", "disputed", "paid_amount", "remaining_amount", "text", "bank_details_changed"}
+EXPENSE_FIELDS = {"merchant", "expense_date", "total_amount", "currency", "vat_amount", "employee_ref", "business_purpose", "category", "payment_method", "paid_by_company", "reimbursed", "business_only", "policy_ref", "policy_confirmed", "policy_limit", "policy_currency", "payment_confirmed"}
 METADATA_COLUMNS = "id,filename,media_type,size_bytes,sha256,created_at,created_by,status,extraction_version,task_id,last_error,language"
 DOCUMENT_RISKS = {
     "partial_payment": r"\b(?:acompte|paiement partiel|reglement partiel|partial payment|partially paid|advance payment|down payment|payment on account|pago parcial|pagado parcialmente|pago a cuenta|anticipo)\b",
@@ -374,11 +375,12 @@ class DocumentStore:
             raise AppError("La version d'extraction et la confirmation humaine sont obligatoires.")
         task_data = {key: data[key] for key in ("title", "description", "skill_id", "country", "payload") if key in data}
         clean, _ = validate_task(task_data)
-        if clean["skill_id"] not in {"invoice-check", "receivables-followup", "admin-triage"}:
+        if clean["skill_id"] not in {"invoice-check", "receivables-followup", "admin-triage", "expense-review"}:
             raise AppError("Ce type de dossier n'est pas pris en charge pour une pièce unique.")
         payload = clean["payload"]
         fields = data.get("verified_fields")
-        if (not payload or set(payload) - REVIEW_FIELDS or not isinstance(fields, list) or any(not isinstance(item, str) for item in fields)
+        allowed_fields = EXPENSE_FIELDS if clean["skill_id"] == "expense-review" else REVIEW_FIELDS
+        if (not payload or set(payload) - allowed_fields or not isinstance(fields, list) or any(not isinstance(item, str) for item in fields)
                 or len(fields) != len(set(fields)) or set(fields) != set(payload)
                 or any(type(item) not in (str, bool) or (isinstance(item, str) and (not item.strip() or len(item) > 12000)) for item in payload.values())):
             raise AppError("Chaque champ conservé doit être renseigné et vérifié individuellement.")
@@ -407,3 +409,58 @@ class DocumentStore:
             self._event(con, document_id, "document.task_created", {"task_id": task["id"], "version": row["extraction_version"], "verified_fields": sorted(fields)})
             con.execute("UPDATE documents SET task_id=?,task_request_hash=? WHERE id=?", (task["id"], request_hash, document_id))
             return task, self._metadata(self._row(con, document_id), detail=True), created
+
+    def reverify_expense(self, document_id, data):
+        """Explicitly reconfirm edited receipt facts; preserve original evidence."""
+        receipt_fields = {"merchant", "expense_date", "total_amount", "currency"}
+        if (not isinstance(data, dict) or set(data) != {"task_version", "extraction_version", "human_verified", "verified_fields"}
+                or data["human_verified"] is not True or type(data["task_version"]) is not int or data["task_version"] < 1
+                or type(data["extraction_version"]) is not int or data["extraction_version"] < 1
+                or not isinstance(data["verified_fields"], list) or any(not isinstance(field, str) for field in data["verified_fields"])
+                or len(data["verified_fields"]) != 4 or set(data["verified_fields"]) != receipt_fields):
+            raise AppError("Reconfirmez individuellement marchand, date, total et devise avec les versions courantes.")
+        with self.store.connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            self._guard(con)
+            row = self._row(con, document_id)
+            if not row["task_id"]:
+                raise AppError("Aucun dossier n'est lié à ce reçu.", 409, "expense_task_required")
+            task = self.store._get(con, row["task_id"])
+            if task["skill_id"] != "expense-review":
+                raise AppError("Cette confirmation est réservée aux notes de frais.", 409, "expense_task_required")
+            if task["version"] != data["task_version"] or row["extraction_version"] != data["extraction_version"]:
+                raise AppError("Le dossier ou l'extraction a changé. Rechargez avant de confirmer.", 409, "version_conflict")
+            if row["status"] != "extracted":
+                raise AppError("Une extraction terminée est nécessaire avant confirmation.", 409, "extraction_review_required")
+            payload = task["payload"]
+            source = payload.get("_document_source")
+            if not isinstance(source, dict) or source.get("document_id") != document_id or source.get("sha256") != row["sha256"]:
+                raise AppError("Le lien avec l'original n'est pas valide.", 409, "invalid_receipt_source")
+            history = source.get("receipt_reviews", [])
+            if not isinstance(history, list) or len(history) >= 10:
+                raise AppError("Le reçu a atteint la limite de dix confirmations complémentaires.", 409, "capacity_reached")
+            if any(not _text(payload.get(field), 1000) or not payload[field].strip() for field in receipt_fields):
+                raise AppError("Renseignez les quatre faits du reçu dans le dossier avant de les confirmer.")
+            extraction = json.loads(row["extraction"])
+            review = {"reviewed_by": audit_actor.get(), "reviewed_at": now(), "human_verified": True,
+                      "extraction_version": row["extraction_version"], "task_version": task["version"], "fields": {}}
+            for field in sorted(receipt_fields):
+                candidate = extraction["candidates"].get(field)
+                review["fields"][field] = {"reviewed_value": payload[field], "origin": "candidate" if candidate else "manual",
+                                           "corrected": candidate is not None and candidate["value"] != payload[field], "candidate": candidate}
+            source = dict(source, receipt_reviews=[*history, review])
+            # Retain newly observed risk evidence too; a second extraction must
+            # never erase an earlier risk merely because OCR failed to read it.
+            risks = list(source.get("document_risk_flags", []))
+            for risk in document_risk_flags(extraction):
+                if risk not in risks:
+                    risks.append(risk)
+            source["document_risk_flags"] = risks
+            candidate = {key: task[key] for key in ("title", "description", "skill_id", "country", "payload")}
+            candidate["payload"] = dict(payload, _document_source=source)
+            clean, _ = validate_task(candidate)
+            task.update(**clean, status="new", result=None, updated_at=now(), version=task["version"] + 1)
+            con.execute("UPDATE tasks SET body=? WHERE id=?", (encoded(task), task["id"]))
+            self.store._event(con, task["id"], "task.expense_reverified", {"document_id": document_id, "version": task["version"], "extraction_version": row["extraction_version"], "previous_review_invalidated": True})
+            self._event(con, document_id, "document.expense_reverified", {"task_id": task["id"], "task_version": task["version"], "verified_fields": sorted(receipt_fields)})
+            return task, self._metadata(row, detail=True)

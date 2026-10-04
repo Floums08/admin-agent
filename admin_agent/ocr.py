@@ -253,6 +253,8 @@ def _date(text):
 
 
 LABELS = {
+    "merchant": r"(?:merchant|store|commercant|marchand|commerce|comercio|establecimiento)",
+    "expense_date": r"(?:receipt date|purchase date|date d['’]achat|date du recu|fecha de compra|fecha del recibo|date|fecha)",
     "invoice_number": r"(?:invoice\s*(?:number|no\.?|#)|facture\s*(?:numero|n[o°º.]*)|factura\s*(?:numero|num\.?|n[o°º.]*))",
     "supplier": r"(?:supplier|fournisseur|proveedor|emetteur|emisor)",
     "customer": r"(?:customer|client|cliente|destinataire|destinatario)",
@@ -261,7 +263,7 @@ LABELS = {
     "net_amount": r"(?:total ht|montant ht|base imponible|subtotal|net amount|net total)",
     "vat_amount": r"(?:montant tva|total tva|importe iva|total iva|vat amount|vat total)",
     "vat_rate": r"(?:taux tva|taux de tva|tipo iva|tipo de iva|vat rate)",
-    "total_amount": r"(?:total ttc|montant ttc|total factura|invoice total|grand total|total amount|total(?=\s*:\s*[0-9]|\s+[0-9]))",
+    "total_amount": r"(?:total ttc|montant ttc|total facture|total factura|invoice total|grand total|total amount|total a payer|importe total|total pagado|total(?=\s*:\s*[0-9]|\s+[0-9]))",
     "currency": r"(?:currency|devise|moneda)",
 }
 

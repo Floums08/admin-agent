@@ -15,8 +15,9 @@ from werkzeug.exceptions import HTTPException
 from .auth import AuthStore, SESSION_TTL
 from .catalog import ROOT, skills
 from .errors import AppError
+from .finance import FinanceStore
 from .documents import DocumentStore, OCRClient, MAX_FILE_BYTES, MAX_UPLOAD_BYTES, MAX_DOCUMENTS, MAX_TOTAL_BYTES
-from .server import MAX_BODY, analyze_task
+from .server import MAX_BODY, analyze_task, finance_read, finance_mutation
 from .storage import Store, audit_actor, audit_guard, encoded
 
 
@@ -85,9 +86,10 @@ def create_app(config=None, *, ocr_client=None):
     store = Store(config.db_path, max_tasks=MAX_TASKS, max_events=MAX_EVENTS, max_result_bytes=MAX_RESULT_BYTES)
     auth = AuthStore(store, config.client_id, config.client_name, config.secret)
     documents = DocumentStore(store, ocr_client=ocr_client or (OCRClient(config.ocr_url) if config.ocr_url else None))
+    finance = FinanceStore(store)
     app = Flask(__name__, static_folder=None)
     app.config.update(MAX_CONTENT_LENGTH=MAX_BODY, MAX_FORM_MEMORY_SIZE=131072, MAX_FORM_PARTS=4, PROPAGATE_EXCEPTIONS=False)
-    app.extensions.update(store=store, auth=auth, documents=documents, production_config=config)
+    app.extensions.update(store=store, auth=auth, documents=documents, finance=finance, production_config=config)
     public_host = urlsplit(config.public_origin).netloc
 
     def response_error(message, status, code):
@@ -107,6 +109,8 @@ def create_app(config=None, *, ocr_client=None):
                 "expires_at": int(session["expires_at"]) if session else None, "idle_timeout_seconds": 1800 if user else 900,
                 "client": {"id": config.client_id, "name": config.client_name}, "scope": "production_single_client", "mode": "offline",
                 "capabilities": {**{key: role in {"admin", "operator"} for key in ("create", "analyze", "update", "review", "documents_upload", "documents_create_task")},
+                    "finance_read": role in {"admin", "operator", "reader"}, "finance_write": role in {"admin", "operator"},
+                    "finance_simulate": role in {"admin", "operator"}, "finance_export": role == "admin",
                     "documents_read": role in {"admin", "operator", "reader"}, "documents_extract": role in {"admin", "operator"} and documents.ocr is not None,
                     "ocr_enabled": documents.ocr is not None, "export": role == "admin", "demo": False}}
 
@@ -243,7 +247,26 @@ def create_app(config=None, *, ocr_client=None):
 
     @app.get("/api/health")
     def health():
-        return jsonify(status="ok", mode="offline", outbound_enabled=False, scope="production_single_client", document_import=True, ocr_enabled=documents.ocr is not None)
+        return jsonify(status="ok", mode="offline", outbound_enabled=False, scope="production_single_client", document_import=True, ocr_enabled=documents.ocr is not None, finance_enabled=True)
+
+    @app.route("/api/finance/<path:finance_path>", methods=["GET", "POST"])
+    def finance_api(finance_path):
+        path = "/api/finance/" + finance_path
+        if request.method == "POST":
+            require_role("admin", "operator")
+            if finance_path in {"bank/preview", "bank/import", "factoring/simulate"}:
+                auth.rate_limit("finance-" + finance_path + "-user", g.session["username"], 15)
+            return jsonify(finance_mutation(finance, path, body()))
+        if finance_path == "export":
+            require_role("admin")
+            if request.method == "HEAD":
+                raise AppError("Utilisez GET pour télécharger l'export.", 405, "method_not_allowed")
+            auth.rate_limit("export-user", g.session["username"], 5)
+            auth.record_event("finance.exported", g.session["username"])
+            response = jsonify(finance_read(finance, path))
+            response.headers["Content-Disposition"] = 'attachment; filename="admin-agent-finance-export.json"'
+            return response
+        return jsonify(finance_read(finance, path))
 
     @app.get("/api/documents")
     def list_documents():
@@ -286,6 +309,12 @@ def create_app(config=None, *, ocr_client=None):
         require_role("admin", "operator")
         task, document, created = documents.create_task(str(document_id), body())
         return jsonify(task=task, document=document), 201 if created else 200
+
+    @app.post("/api/documents/<uuid:document_id>/reverify-expense")
+    def reverify_expense_document(document_id):
+        require_role("admin", "operator")
+        task, document = documents.reverify_expense(str(document_id), body())
+        return jsonify(task=task, document=document)
 
     @app.get("/api/skills")
     def skills_route():
@@ -344,7 +373,7 @@ def create_app(config=None, *, ocr_client=None):
         auth.rate_limit("export-user", g.session["username"], 5)
         auth.record_event("data.exported", g.session["username"])
         def stream():
-            prefix = {"format_version": "1.0", "exported_on": date.today().isoformat(), "client": {"id": config.client_id, "name": config.client_name}, "skills": skills(include_body=False)}
+            prefix = {"format_version": "1.1", "exported_on": date.today().isoformat(), "client": {"id": config.client_id, "name": config.client_name}, "skills": skills(include_body=False)}
             yield encoded(prefix)[:-1] + ',"tasks":['
             with store.connection() as con:
                 # One read transaction gives the export a consistent snapshot.
@@ -358,7 +387,8 @@ def create_app(config=None, *, ocr_client=None):
                 for row in con.execute("SELECT id,task_id,action,created_at,details FROM events ORDER BY id"):
                     yield ("" if first else ",") + encoded(dict(row, details=json.loads(row["details"])))
                     first = False
-            yield "]}"
+                yield '],"finance":' + encoded(finance.export(connection=con))
+            yield "}"
         response = Response(stream_with_context(stream()), content_type="application/json; charset=utf-8")
         response.headers["Content-Disposition"] = 'attachment; filename="admin-agent-export.json"'
         return response

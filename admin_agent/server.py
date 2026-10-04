@@ -9,13 +9,56 @@ import re
 from urllib.parse import unquote, urlsplit
 
 from .catalog import ROOT, get_skill, skill_body, skills
-from .engine import analyze, result_status
+from .engine import analyze, expense_duplicates, result_status
 from .errors import AppError
+from .finance import FinanceStore
 from .storage import Store
 
 
 MAX_BODY = 65536
 TASK_ROUTE = re.compile(r"^/api/tasks/([0-9a-f-]{36})(?:/(analyze|review|update))?$")
+FINANCE_ITEM_ROUTE = re.compile(r"^/api/finance/(allocations|invoices)/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/(reverse|assignment|state)$")
+
+
+def finance_read(finance, path):
+    """Shared read contract for the isolated production app and loopback demo."""
+    if path == "/api/finance/summary":
+        return finance.summary()
+    if path == "/api/finance/invoices":
+        return {"invoices": finance.list_invoices()}
+    if path == "/api/finance/bank-transactions":
+        return {"transactions": finance.list_transactions()}
+    if path == "/api/finance/allocations":
+        return {"allocations": finance.list_allocations()}
+    if path == "/api/finance/suggestions":
+        return finance.suggestions()
+    if path == "/api/finance/export":
+        return finance.export()
+    raise AppError("Route finance introuvable.", 404, "not_found")
+
+
+def finance_mutation(finance, path, data):
+    """Only internal bookkeeping records; never a bank/payment/provider action."""
+    if path == "/api/finance/invoices/register":
+        return {"invoice": finance.register_invoice(data)}
+    if path == "/api/finance/bank/preview":
+        return {"preview": finance.preview_bank(data)}
+    if path == "/api/finance/bank/import":
+        return {"import": finance.import_bank(data)}
+    if path == "/api/finance/allocations/confirm":
+        return {"allocation": finance.confirm_allocation(data)}
+    if path == "/api/finance/factoring/simulate":
+        return {"simulation": finance.simulate_factoring(data)}
+    match = FINANCE_ITEM_ROUTE.fullmatch(path)
+    if match:
+        collection, item_id, action = match.groups()
+        if (collection, action) == ("allocations", "reverse"):
+            return {"allocation": finance.reverse_allocation(item_id, data)}
+        if (collection, action) == ("invoices", "assignment"):
+            return {"invoice": finance.set_assignment(item_id, data)}
+        if (collection, action) == ("invoices", "state"):
+            return {"invoice": finance.set_invoice_state(item_id, data)}
+    raise AppError("Route finance introuvable. Aucune action bancaire externe n'est disponible.", 404, "not_found")
 
 
 def mode():
@@ -24,7 +67,10 @@ def mode():
 
 
 def analyze_task(store, task, use_ai=False):
-    result = analyze(task)
+    if task["skill_id"] == "expense-review":
+        result = analyze(task, expense_duplicate_ids=expense_duplicates(task, store.list()))
+    else:
+        result = analyze(task)
     deterministic_status = result_status(result)
     if use_ai:
         from .llm import enrich_with_ai
@@ -71,6 +117,7 @@ class LocalHTTPServer(ThreadingHTTPServer):
         if server_address[0] not in {"127.0.0.1", "localhost"}:
             raise ValueError("Le pilote ne peut écouter que sur 127.0.0.1 ou localhost.")
         self.store = store
+        self.finance = FinanceStore(store)
         self.web_root = Path(web_root or ROOT / "web").resolve()
         super().__init__(("127.0.0.1", server_address[1]), Handler)
 
@@ -169,9 +216,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"authenticated": True, "user": None, "csrf_token": None,
                                "client": {"id": "local", "name": "Espace de travail local"},
                                "scope": "local_single_business_pilot", "mode": mode(),
-                               "capabilities": {key: True for key in ("create", "analyze", "update", "review", "export", "demo")}})
+                               "capabilities": {key: True for key in ("create", "analyze", "update", "review", "export", "demo", "finance_read", "finance_write", "finance_export", "finance_simulate")}})
         if path == "/api/health":
-            return self._json({"status": "ok", "mode": mode(), "outbound_enabled": False, "scope": "local_single_business_pilot"})
+            return self._json({"status": "ok", "mode": mode(), "outbound_enabled": False, "scope": "local_single_business_pilot", "finance_enabled": True})
+        if path.startswith("/api/finance/"):
+            extra = {"Content-Disposition": 'attachment; filename="admin-agent-finance-export.json"'} if path == "/api/finance/export" else None
+            return self._json(finance_read(self.server.finance, path), extra=extra)
         if path == "/api/skills":
             return self._json({"skills": skills()})
         if path in {"/api/tasks", "/api/dashboard"}:
@@ -184,7 +234,7 @@ class Handler(BaseHTTPRequestHandler):
         if match and match.group(2) is None:
             return self._json({"task": store.get(match.group(1)), "events": store.events(match.group(1))})
         if path == "/api/export":
-            return self._json({"format_version": "1.0", "exported_on": date.today().isoformat(), "tasks": store.list(), "events": store.events(), "skills": skills(include_body=False)},
+            return self._json({"format_version": "1.1", "exported_on": date.today().isoformat(), "tasks": store.list(), "events": store.events(), "skills": skills(include_body=False), "finance": self.server.finance.export()},
                               extra={"Content-Disposition": 'attachment; filename="admin-agent-export.json"'})
         if path.startswith("/api/"):
             raise AppError("Route introuvable.", 404, "not_found")
@@ -212,6 +262,8 @@ class Handler(BaseHTTPRequestHandler):
         data = self._body()
         path = self._path()
         store = self.server.store
+        if path.startswith("/api/finance/"):
+            return self._json(finance_mutation(self.server.finance, path, data))
         if path == "/api/tasks":
             task, created = store.create(data)
             return self._json({"task": task}, 201 if created else 200)

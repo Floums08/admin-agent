@@ -1,20 +1,24 @@
 # OCR local et connecteurs gratuits
 
-Version du 2 octobre 2026. Cette extension prépare l'entrée des documents et des données dans Admin Agent sans abonnement à une API OCR payante. Elle conserve les quatre workflows exécutables et les huit skills guidées : lire une pièce ne rend pas automatiquement fiables ses montants, ses dates ou son statut de paiement.
+Version du 4 octobre 2026. Cette extension prépare l'entrée des documents et des données dans Admin Agent sans abonnement à une API OCR payante. Le catalogue comprend désormais cinq workflows exécutables, dont la revue d'un reçu de frais, et sept skills guidés. Lire une pièce ne rend pas automatiquement fiables ses montants, ses dates ou son statut de paiement.
 
 ## Choisir le chemin adapté
 
 | Source disponible chez le client | Outil livré | Résultat dans Admin Agent | À prévoir |
 |---|---|---|---|
 | Facture PDF, scan PNG/JPEG | Import dans Documents + Poppler/Tesseract/Pillow | Original conservé, texte par page, propositions sourcées et confirmation humaine | Instance avec worker OCR, langue et qualité vérifiées |
+| Reçu de frais PDF, PNG/JPEG | Documents puis Note de frais | Un dossier `expense-review` par reçu, après comparaison et confirmation des champs | Demandeur, motif, paiement et politique interne explicitement renseignés |
 | Dossier de fichiers sur l'hôte | Connecteur de dossier local | Documents collectés, prêts pour extraction et revue | Chemin dédié, droits de lecture et lot maîtrisé |
 | Export tabulaire de facturation | Connecteur CSV | Dossiers de contrôle de facture au statut nouveau | Colonnes, séparateur, décimales et format de date configurés |
 | Espace Nextcloud/WebDAV existant | Connecteur WebDAV en lecture seule | Copies des documents autorisés, puis extraction séparée | Compte limité au dossier, mot de passe d'application et URL HTTPS |
 | Dolibarr existant | Connecteur REST en lecture seule | Dossiers nouveaux à partir des factures, sans création d'écriture distante | Module REST, compte avec droits de lecture et clé dédiée |
+| Export bancaire autorisé | Import CSV depuis Finances | Opérations dans un registre séparé, puis allocations confirmées manuellement | Alias stable de compte et de transactions, ouverture datée des factures, revue de l'aperçu |
 
 Le logiciel Tesseract est libre sous Apache 2.0 [S1], Pillow sous MIT-CMU [S3], et Poppler fournit les outils de lecture PDF [S2]. Nextcloud et Dolibarr peuvent être auto-hébergés ; Dolibarr indique ne pas facturer de licence d'utilisation du logiciel [S4, S6]. **Gratuit concerne ici les briques logicielles et l'absence d'appel OCR facturé.** Hébergement, stockage, sauvegardes, maintenance, supervision et temps de revue restent à chiffrer. Aucun fournisseur, compte gratuit tiers ou forfait d'hébergement n'est créé automatiquement.
 
 Pour un premier client, commencer par l'import manuel et un petit CSV représentatif. Ajouter Nextcloud si les pièces y sont déjà classées, ou Dolibarr si l'outil détient déjà les factures du client. Il n'est pas nécessaire de migrer son organisation vers un nouvel ERP pour utiliser l'OCR.
+
+Le CSV du connecteur de facturation et le CSV bancaire sont deux formats et deux parcours différents. Le premier crée des dossiers à analyser ; le second alimente un registre de mouvements et ne valide aucune facture. Le [guide Finances et frais](09-FINANCE-ET-FRAIS.md) décrit le suivi, le rapprochement et la simulation d'affacturage, sans paiement ni contact externe.
 
 ## 1. Parcours documentaire et contrôle humain
 
@@ -27,6 +31,10 @@ Pour un premier client, commencer par l'import manuel et un petit CSV représent
 7. Faire réaliser toute suite métier par la personne habilitée dans son outil : la création du dossier n'envoie aucun message et ne met pas à jour la source.
 
 Une nouvelle extraction ne remplace pas silencieusement le dossier déjà créé. Si un document ou un état change, traiter la divergence explicitement et refaire la revue concernée. Un PDF numériquement signé n'est pas authentifié par cet OCR. Le texte natif d'un PDF peut différer de son apparence : vérifier la page rendue, notamment les montants, même quand le résultat est lisible.
+
+Pour **Note de frais**, revoir le commerçant, la date, le total et la devise sur l'original, puis compléter le demandeur, le motif et la politique de frais. L'extraction du commerçant et de la date dépend des libellés reconnus ; les champs absents peuvent nécessiter une saisie manuelle. Confirmer séparément que la dépense a été payée, qui l'a payée, si elle a déjà été remboursée et son caractère entièrement professionnel. Une réponse inconnue reste inconnue. L'OCR ne démontre ni le paiement ni la TVA récupérable ; une dépense mixte, déjà payée par l'entreprise ou déjà remboursée est bloquée dans ce parcours. Les doublons possibles sont recherchés même si le demandeur diffère.
+
+Après correction du commerçant, de la date, du total ou de la devise dans un dossier de frais existant, utiliser **Reconfirmer le reçu**. Comparer de nouveau les quatre valeurs avec l'original et confirmer chaque champ. L'original et la première preuve restent conservés ; l'historique reçoit la nouvelle revue, avec dix reconfirmations maximum. La version change et l'ancienne analyse/approbation est invalidée : analyser puis relire de nouveau le dossier. Un conflit de versions impose de recharger avant la nouvelle confirmation.
 
 Les téléchargements d'originaux sont réservés aux utilisateurs autorisés de l'instance ; les pièces ne deviennent pas des liens publics. L'export global JSON des dossiers n'est pas un paquet complet de restitution documentaire. Pour rendre les originaux, les télécharger séparément et rapprocher l'inventaire de leurs empreintes ; la sauvegarde de base contient aussi les données d'authentification et ne doit pas être transmise comme un export métier ordinaire.
 
@@ -45,7 +53,7 @@ Les téléchargements d'originaux sont réservés aux utilisateurs autorisés de
 | Dossiers métier | 100 dossiers cumulés, distincts du nombre de documents |
 | Effacement | Pas de purge documentaire automatique ni de suppression sélective proposée dans cette version |
 
-La taille et le temps ne sont pas des garanties de qualité. Manuscrit, scans flous, tableaux complexes, plusieurs devises/taux ou factures avec avoirs et acomptes demandent une revue spécifique ; le contrôle métier reste limité à son périmètre initial. En cas d'ambiguïté, conserver le blocage et revenir à la source.
+La taille et le temps ne sont pas des garanties de qualité. Manuscrit, scans flous, tableaux complexes, plusieurs devises ou factures avec plusieurs taux, avoirs et acomptes demandent une revue spécifique. Le contrôle simple des factures conserve son périmètre initial. La revue d'un reçu de frais peut porter sur le total brut en présence de plusieurs taux, sans en vérifier la déductibilité. En cas d'ambiguïté non résolue, conserver le blocage et revenir à la source.
 
 Les octets originaux, leurs empreintes, le texte, les propositions et les confirmations sont stockés dans la même base SQLite que les dossiers. La sauvegarde cohérente existante les inclut. Les quotas sont cumulatifs et n'expirent pas en fin de mois. Définir la conservation des copies de travail avec le client ; elle n'est pas automatiquement identique à sa conservation légale des factures. Surveiller la capacité et développer une évolution testée avant saturation, sans supprimer directement des lignes SQL.
 
@@ -104,6 +112,14 @@ Les fichiers du dossier local ou de WebDAV sont importés comme documents, sans 
 
 Chaque élément est suivi par identifiant source et empreinte : le rejeu du même contenu est idempotent. Un contenu modifié sous le même identifiant donne un conflit à résoudre humainement ; il n'écrase pas un dossier relu. Examiner le résultat de chaque lot avant de continuer : l'import n'est pas atomique à l'échelle du lot. Des éléments peuvent être importés alors que d'autres sont refusés ; `completed: false` et le code de sortie 2 signalent un lot incomplet. Le rejeu retrouve les éléments déjà importés sans les dupliquer. Aucun ordonnanceur ni boucle de synchronisation permanente n'est activé.
 
+### Import bancaire depuis le navigateur
+
+Le fichier [`examples/finance-bank.example.csv`](../../examples/finance-bank.example.csv) contient uniquement des données fictives. Le format est strict : `transaction_id,date,amount,currency,reference`, UTF-8, virgule, dates ISO et décimales avec un point. Dans **Finances → Banque & rapprochements**, fournir une référence stable de compte, prévisualiser, relire puis confirmer l'import. Les références de compte et de transaction permettent de reconnaître les rejeux ; une valeur modifiée sous la même clé entraîne un conflit.
+
+Ce parcours bancaire a ses propres bornes : 200 lignes et 60 000 octets de CSV par lot, dans une requête JSON de 64 Kio ; 100 imports et 1 000 opérations cumulés. Le registre accepte jusqu'à 100 factures et 3 000 allocations, avec 10 000 événements financiers. Les aperçus, imports et simulations sont chacun limités à quinze requêtes par utilisateur sur quinze minutes. Les opérations affectées doivent être strictement postérieures au solde d'ouverture de la facture, confirmé à la fin de sa journée de référence. Le CSV et sa provenance sont sauvegardés dans SQLite ; ce parcours n'accède pas au compte bancaire et ne met pas à jour l'ERP.
+
+Achever la revue d'une facture avant de l'inscrire au registre : son ouverture devient immuable. Une modification ou réanalyse ultérieure du dossier source bloque les nouvelles affectations et simulations, sans remise à jour automatique de l'instantané dans cette livraison. Les annulations restent accessibles ; toute divergence doit être examinée avec le responsable du suivi.
+
 ## 5. Particularités de chaque source
 
 | Connecteur | Préparation et droits | Limites à connaître |
@@ -131,6 +147,8 @@ L'ordre utilise l'identifiant croissant. Des modifications simultanées dans l'E
 ## 6. Recette et fonctionnement en cas d'échec
 
 Exécuter D01 à D06 du [guide de recette](04-RECETTE-CLIENT.md) pour le périmètre choisi. Les tests automatisés du dépôt utilisent des documents synthétiques et des réponses de source contrôlées. **Aucun compte Nextcloud ou Dolibarr réel n'a été connecté ni validé pour un client dans cette livraison.** Les versions et les résultats effectivement testés sont consignés dans [QA](../QA.md).
+
+Pour activer les reçus de frais, le registre, le rapprochement ou le simulateur, ajouter les essais F01 à F14 du [guide Finances et frais](09-FINANCE-ET-FRAIS.md). Les essais doivent inclure les exports et formats autorisés du client, les limites de permission, les doublons et la restauration des CSV originaux.
 
 | Situation | Action attendue |
 |---|---|

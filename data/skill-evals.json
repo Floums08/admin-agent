@@ -500,12 +500,12 @@
       }
     },
     {
-      "id": "expense-review-guided-gate",
+      "id": "expense-review-missing-receipt-and-context",
       "evaluation_type": "deterministic",
       "skill_id": "expense-review",
       "as_of": "2026-10-02",
       "input": {
-        "title": "expense-review-guided-gate",
+        "title": "expense-review-missing-receipt-and-context",
         "description": "Dossier de test synthétique.",
         "country": "FR",
         "payload": {}
@@ -515,10 +515,21 @@
         "outbound_executed": false,
         "status": "blocked",
         "missing_fields": [
-          "specialist_review"
+          "merchant",
+          "expense_date",
+          "total_amount",
+          "currency",
+          "payment_confirmed",
+          "policy_ref"
         ],
+        "finding_fields": [
+          "_document_source",
+          "expense_duplicates"
+        ],
+        "draft_empty": true,
         "checks_fail": [
-          "specialist_automation"
+          "expense_receipt",
+          "expense_duplicates"
         ]
       }
     },

@@ -19,7 +19,7 @@ Statut initial : **NON LANCÉ**. Copier ce modèle dans l'espace privé du clien
 
 | ID | Condition | Preuve attendue | Responsable | État / date |
 |---|---|---|---|---|
-| G01 | Une seule entité et quatre workflows maximum couverts ; limites comprises | Périmètre accepté avec volumes et exclusions | Client + service | Non vérifié |
+| G01 | Une seule entité ; sélection parmi les cinq workflows et le module financier ; limites comprises | Périmètre accepté avec volumes et exclusions ; recette finance/frais si retenus | Client + service | Non vérifié |
 | G02 | Instructions et cadre de traitement validés | Références du contrat, annexes, registre et fournisseurs | Client + prestataire | Non vérifié |
 | G03 | Règles de conservation/restitution/suppression décidées | Tableau par catégorie et copies/sauvegardes | Responsable vie privée | Non vérifié |
 | G04 | Instance/base dédiées, aucun jeu réel en dépôt public | Config et contrôle d'identité client | Technique | Non vérifié |

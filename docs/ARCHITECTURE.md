@@ -61,7 +61,9 @@ L'export JSON est un outil de restitution métier pour l'administrateur, pas une
 
 ## Frontière de l'IA
 
-**L'IA externe est désactivée dans le serveur de production de cette release.** L'activer par variable d'environnement est refusé. Les quatre workflows disponibles reposent sur les contrôles déterministes. Les huit autres skills sont guidées et ne deviennent pas des automatismes par leur seule présence dans le catalogue.
+**L'IA externe est désactivée dans le serveur de production de cette release.** L'activer par variable d'environnement est refusé. Les cinq workflows disponibles reposent sur les contrôles déterministes. Les sept autres skills sont guidées et ne deviennent pas des automatismes par leur seule présence dans le catalogue.
+
+Le module `finance.py` conserve factures suivies, imports CSV originaux, mouvements, affectations et événements financiers dans cette même base SQLite. Les mutations sont transactionnelles avec contrôle de version, permissions et révocation avant validation. Les montants sont calculés en `Decimal`, les sommes affectées en centimes entiers. Le suivi ne modifie pas le montant du dossier source ; toute modification de sa version bloque les nouvelles opérations. Les simulations d'affacturage ne créent aucun mouvement bancaire ni paiement. L'export global `1.1` inclut le registre financier dans un instantané cohérent ; les sauvegardes existantes conservent également ses tables.
 
 L'adaptateur local `admin_agent/llm.py` appelle uniquement l'API Responses officielle, sans tools, avec schéma JSON strict et `store:false`. Il transmet le dossier courant, une skill, le pack pays et le résultat local. Le contexte est borné à 24 000 octets et la sortie à 1 200 tokens ; ce n'est pas un plafond monétaire. L'avis est séparé sous `ai_advice` et ne remplace pas les calculs ou les règles d'approbation. Les références aux champs sont vérifiées, pas la vérité de chaque conclusion.
 

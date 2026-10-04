@@ -1,4 +1,18 @@
-# Contrôle qualité — pilote factures, version 0.4
+# Contrôle qualité — finances et frais, version 0.5
+
+Date : **4 octobre 2026**. Cette version ajoute le suivi des factures clients/fournisseurs, les paiements partiels, le rapprochement bancaire CSV, l'affacturage indicatif et les reçus de notes de frais. Le [guide opératoire](launch/09-FINANCE-ET-FRAIS.md) définit le périmètre et le [rapport indépendant](QA-FINANCE-2026-10-04.md) détaille les contrôles financiers et de sécurité. Toutes les données de recette sont synthétiques.
+
+La validation locale a réussi : **335 tests Python, aucun ignoré**, avec les dépendances de production et les moteurs OCR réels. Les tests couvrent les centimes, sens et devises, l'ouverture en fin de journée, les imports idempotents, conflits atomiques, paiements partiels, annulations, versions, cessions documentées et absence de paiement lors d'une simulation. Les reçus PDF FR/ES et images EN/FR/ES passent par Poppler/Tesseract ; ces résultats ne mesurent pas la qualité d'un lot client réel.
+
+Les **47 scénarios DOM/API** passent : 12 généraux, 13 d'authentification, 10 documentaires et 12 financiers. Les **27 scénarios Chromium réels** ont également réussi : dix de production/authentification, neuf d'import/OCR documentaire et huit de finance/frais, avec certificat TLS local, service de production réel et worker OCR réel. Les nouveaux parcours couvrent inscription, simulation à 30 jours, import et rejeu CSV, paiement partiel et annulation, litige et cession, reçu OCR, correction/reconfirmation, droits lecteur, mobile et purge après déconnexion. Les captures synthétiques desktop/mobile ont été inspectées ; les notifications simultanées ont été limitées à deux pour conserver la lisibilité.
+
+Docker et restic ne sont pas disponibles dans le poste de validation local. Le workflow GitHub Actions doit compléter la recette sur les images construites, le Compose pilote avec TLS vérifié et la restauration chiffrée ; ne pas déduire leur succès des tests locaux. Le smoke des images inclut désormais une facture, une simulation, un import bancaire avec rejeu et un rapprochement partiel.
+
+Corrections issues de la revue : une base locale contenant seulement des mouvements bancaires ou des documents ne peut plus être attribuée silencieusement à un client de production ; les doublons de frais sont revérifiés au moment de l'approbation ; la reconfirmation d'un reçu corrigé conserve ses preuves et invalide l'ancienne analyse/revue. La révocation d'une session pendant une écriture provoque son annulation transactionnelle.
+
+Limites de livraison : ouverture du registre et instantané de facture immuables, modification ultérieure de la source bloquante, aucun traitement des avoirs ou flux du factor, aucun remboursement salarié rapproché, aucun compte bancaire ni financeur connecté. Le registre n'actualise pas automatiquement le workflow séparé de relance. Le lancement client requiert encore hébergement, HTTPS public, accès nominatifs, restauration hors hôte et recette sur pièces autorisées.
+
+## Historique — pilote factures, version 0.4
 
 Date : **3 octobre 2026**. Le [rapport de revue indépendante du pilote](QA-PILOT-2026-10-03.md) décrit les vérifications du lancement local privé, des dix factures synthétiques et du registre de mesures. Le [guide opératoire](launch/08-PILOTE-FACTURES.md) sépare cette répétition de la qualification du premier client. Aucun résultat de test ne mesure une économie de temps humain ou ne constitue une mise en service cliente.
 

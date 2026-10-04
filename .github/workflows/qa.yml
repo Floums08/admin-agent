@@ -42,11 +42,15 @@ jobs:
         run: npm run test:auth-ui
       - name: Run document review DOM scenarios
         run: npm run test:documents-ui
+      - name: Run invoice tracking and bank reconciliation DOM scenarios
+        run: npm run test:finance-ui
       - run: npx playwright install --with-deps chromium
       - name: Run desktop and mobile browser scenarios with local TLS
         run: npm run test:browser
       - name: Run original document and OCR browser scenarios
         run: npm run test:documents-browser
+      - name: Run finance and receipt browser scenarios
+        run: npm run test:finance-browser
   production-image:
     runs-on: ubuntu-latest
     steps:

@@ -16,7 +16,7 @@ class SkillCatalogTests(unittest.TestCase):
     def test_catalog_and_skill_documents(self):
         rows = json.loads((ROOT / "data/skills.json").read_text(encoding="utf-8"))["skills"]
         required = {"id", "name", "description", "priority", "agent", "inputs", "outputs", "status", "path"}
-        core = {"invoice-check", "receivables-followup", "bookkeeping-pack", "admin-triage"}
+        core = {"invoice-check", "receivables-followup", "bookkeeping-pack", "admin-triage", "expense-review"}
         self.assertEqual(len(rows), 12)
         self.assertEqual(len({row["id"] for row in rows}), 12)
         self.assertEqual(len({row["agent"] for row in rows}), 6)
