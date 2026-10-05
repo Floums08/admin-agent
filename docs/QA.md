@@ -1,5 +1,11 @@
 # Contrôle qualité — finances et frais, version 0.5
 
+## Complément du 5 octobre 2026 — documents fictifs
+
+Le [générateur et sa recette](launch/10-JEU-TEST-FICTIF.md) ajoutent un lot téléchargeable de dix factures et huit reçus, leurs CSV et un corrigé indépendant. Aucun fichier du runtime applicatif n'est modifié. La validation du lot réussit sur 18 cas et neuf scénarios financiers, avec 17 originaux uniques extraits par le vrai sous-processus OCR. Sur 127 champs, 125 sont exacts et deux noms de clients demandent une correction O/0 ; les montants et dates présents sont exacts. La revue humaine simulée utilise les valeurs du corrigé et reste distincte de la qualité OCR. La suite existante de 335 tests a été rejouée sans échec ni test ignoré. Les originaux et le guide ont été inspectés visuellement après rendu, et les résultats détaillés accompagnent le lot.
+
+## Livraison du 4 octobre 2026
+
 Date : **4 octobre 2026**. Cette version ajoute le suivi des factures clients/fournisseurs, les paiements partiels, le rapprochement bancaire CSV, l'affacturage indicatif et les reçus de notes de frais. Le [guide opératoire](launch/09-FINANCE-ET-FRAIS.md) définit le périmètre et le [rapport indépendant](QA-FINANCE-2026-10-04.md) détaille les contrôles financiers et de sécurité. Toutes les données de recette sont synthétiques.
 
 La validation locale a réussi : **335 tests Python, aucun ignoré**, avec les dépendances de production et les moteurs OCR réels. Les tests couvrent les centimes, sens et devises, l'ouverture en fin de journée, les imports idempotents, conflits atomiques, paiements partiels, annulations, versions, cessions documentées et absence de paiement lors d'une simulation. Les reçus PDF FR/ES et images EN/FR/ES passent par Poppler/Tesseract ; ces résultats ne mesurent pas la qualité d'un lot client réel.

@@ -29,6 +29,8 @@ La production utilise les **cinq workflows déterministes**, dont la préparatio
 
 La version **0.5** ajoute une section **Finances** et un parcours **Notes de frais**. Le [guide d'utilisation](docs/launch/09-FINANCE-ET-FRAIS.md) décrit les étapes et la [recherche FR/ES](docs/research/04-finance-expenses.md) explique les choix de contrôle.
 
+**Pour tester :** le [jeu de documents fictifs](docs/launch/10-JEU-TEST-FICTIF.md) génère dix factures, huit reçus de frais, deux relevés CSV et un guide avec corrigé. Il couvre les cas normaux, erreurs de total/date, doublons, paiements partiels, litiges et affacturage indicatif. Aucun import automatique n'est effectué.
+
 | Fonction | Fonctionnement |
 |---|---|
 | Suivi clients et fournisseurs | Enregistrer une facture contrôlée et validée en interne, confirmer le solde d'ouverture, suivre échéance, solde et règlements partiels ; signaler une source modifiée |
