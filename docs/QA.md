@@ -1,5 +1,15 @@
 # Contrôle qualité — finances et frais, version 0.5
 
+## Complément du 6 octobre 2026 — implantation et amélioration continue en espagnol
+
+Documentation ajoutée : [guide d'implantation](launch/es/GUIA-IMPLEMENTACION.md), [processus d'amélioration](launch/es/MEJORA-CONTINUA.md) et [modèles opérationnels](launch/es/PLANTILLAS-OPERATIVAS.md). Aucun code applicatif, dépendance, skill exécutable, secret ou environnement client n'est modifié.
+
+Base relue : `cf52ccdf7a2297be14ad1ad8b88e5b07d2950e7d`. La [CI de cette base](https://github.com/Floums08/admin-agent/actions/runs/37315977049) est terminée avec succès. Cette observation du 6 octobre est distincte de toute nouvelle exécution locale et ne vaut pas recette d'un hébergement réel.
+
+Contrôles documentaires : commandes rapprochées de la CLI et des runbooks existants ; liens relatifs vérifiés contre l'arbre du dépôt ; blocs de code équilibrés ; distinction entre les deux lots synthétiques, les mesures manuelles et la CI automatique. Deux audits indépendants ont vérifié déploiement/reprise et métriques/limites. La documentation conserve les limites de la source financière figée, des quotas cumulés, des comptes désactivés après restauration et de l'IA externe indisponible en production.
+
+Les cadences, seuils opérationnels de capacité 70 % / 85 % et priorités sont des propositions explicites. Ils n'activent ni surveillance, ni collecte périodique, ni communications. Le lot étendu de 18 pièces n'est pas encore un pas du workflow CI ; son ajout est proposé comme amélioration. Les décisions et preuves clientes sont à compléter en privé.
+
 ## Complément du 5 octobre 2026 — documents fictifs
 
 Le [générateur et sa recette](launch/10-JEU-TEST-FICTIF.md) ajoutent un lot téléchargeable de dix factures et huit reçus, leurs CSV et un corrigé indépendant. Aucun fichier du runtime applicatif n'est modifié. La validation du lot réussit sur 18 cas et neuf scénarios financiers, avec 17 originaux uniques extraits par le vrai sous-processus OCR. Sur 127 champs, 125 sont exacts et deux noms de clients demandent une correction O/0 ; les montants et dates présents sont exacts. La revue humaine simulée utilise les valeurs du corrigé et reste distincte de la qualité OCR. La suite existante de 335 tests a été rejouée sans échec ni test ignoré. Les originaux et le guide ont été inspectés visuellement après rendu, et les résultats détaillés accompagnent le lot.

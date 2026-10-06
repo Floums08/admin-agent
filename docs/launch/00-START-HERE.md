@@ -1,5 +1,7 @@
 # Lancer un premier client Admin Agent
 
+**En español:** [guía de implementación](es/GUIA-IMPLEMENTACION.md), [mejora continua](es/MEJORA-CONTINUA.md) y [plantillas para completar](es/PLANTILLAS-OPERATIVAS.md).
+
 Version du 4 octobre 2026. Ce guide prépare un **service administratif opéré**, avec une instance isolée par entreprise et des personnes nommées pour préparer et relire les dossiers. Il ne décrit pas un SaaS mutualisé en libre-service.
 
 La présence du code, d'un conteneur ou d'une CI verte ne signifie pas qu'un client est lancé. Le lancement est acquis seulement après déploiement sur l'hébergement choisi, recette sur cette instance, restauration prouvée et décision de lancement enregistrée. Aucune infrastructure cliente, donnée réelle, commande d'achat ou prise de contact n'est créée par cette documentation.

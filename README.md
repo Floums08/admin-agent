@@ -1,5 +1,7 @@
 # Admin Agent
 
+**Documentación en español:** [guía de implementación](docs/launch/es/GUIA-IMPLEMENTACION.md), [proceso de mejora continua](docs/launch/es/MEJORA-CONTINUA.md) y [plantillas operativas](docs/launch/es/PLANTILLAS-OPERATIVAS.md). Incluye alta de cliente, aceptación de módulos, métricas, prioridades y controles de entrega.
+
 **Un atelier administratif pour entrepreneurs et TPE : préparer les dossiers, montrer ce qui manque et garder la décision humaine.**
 
 Premier socle développé le 2 octobre 2026, à partir d'une recherche France / Espagne / UE : **38 fonctions administratives, 36 références documentées, 12 skills et 6 familles de spécialistes**. Les recommandations et prix éventuels sont des hypothèses de validation, distinctes des faits sourcés.
