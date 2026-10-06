@@ -81,7 +81,7 @@ python scripts/validate_test_document_pack.py \
   --report runtime/jeu-test-2026-10-06/qa/validation.json
 ```
 
-Usar una ruta nueva para cada lote. Estos scripts no cargan documentos en la instancia; el validador usa una base temporal y simula revisión humana. Para comprobar la interfaz, importar manualmente los documentos siguiendo el [guía de pruebas](../10-JEU-TEST-FICTIF.md), conservando las anomalías intencionadas.
+Usar una ruta nueva para cada lote. Estos scripts no cargan documentos en la instancia; el validador usa una base temporal y simula revisión humana. Para comprobar la interfaz, importar manualmente los documentos siguiendo la [guía de pruebas](../10-JEU-TEST-FICTIF.md), conservando las anomalías intencionadas.
 
 Los dos lotes son distintos: diez piezas para el piloto de facturas y 18 para finanzas/gastos. Mantener sus resultados y cohortes separados. Los datos ficticios nunca cuentan como evidencia de calidad sobre documentos del cliente.
 
@@ -91,13 +91,13 @@ Arquitectura de referencia: una VM y una dirección pública por cliente, Caddy 
 
 El técnico debe preparar Linux, Docker Engine/Compose mantenidos, Git, Python 3.11+ con venv, restic, systemd y utilidades Linux; DNS correcto; reloj sincronizado; cifrado del disco; SSH restringido y administración nominativa. Exponer únicamente los accesos acordados, con 80/443 para Caddy. Los puertos 8765 y 8766 no se publican.
 
-Las reservas máximas de Compose son 512 MiB para aplicación, 768 MiB para OCR y 256 MiB para proxy. No representan el tamaño suficiente de una VM: añadir sistema, copias y margen medido. Documentar disco libre, carga y duración del OCR durante la aceptación.
+Los límites de memoria de Compose son 512 MiB para aplicación, 768 MiB para OCR y 256 MiB para proxy. No representan el tamaño suficiente de una VM: añadir sistema, copias y margen medido. Documentar disco libre, carga y duración del OCR durante la aceptación.
 
 El software usado evita tarifas por llamada OCR, pero hosting, almacenamiento, backups y mantenimiento siguen teniendo coste. Registrar su coste completo antes de fijar una tarifa de servicio.
 
 ## 5. Instalar una versión fija y crear los accesos
 
-Los ejemplos siguientes usan `acme`, `Empresa Ejemplo` y `admin.example.com`. Sustituirlos de forma coherente. El directorio del cliente debe ser nuevo. Ejecutar en el servidor autorizado, desde `/opt/admin-agent`:
+Los ejemplos siguientes usan `acme`, `Empresa Ejemplo` y `admin.example.com`. Sustituirlos de forma coherente. El directorio del cliente debe ser nuevo. Ejecutar en el servidor autorizado; el bloque crea `/opt/admin-agent` y entra en él:
 
 ```bash
 sudo git clone https://github.com/Floums08/admin-agent.git /opt/admin-agent
@@ -155,8 +155,8 @@ El [control `preflight`](../03-DEPLOIEMENT.md) aporta evidencia técnica. Su sal
 |---|---|---|
 | Documentos manuales | Importar original en **Documents** | Abrir original, extraer, corregir/confirmar y generar expediente |
 | Carpeta o CSV de facturas | Preparar configuración CLI privada y vista previa | Correspondencia de columnas, duplicados y estados desconocidos |
-| WebDAV/Nextcloud | Cuenta de prueba con permisos mínimos y servidor HTTPS permitido | Lectura, paginación, fallo de autenticación y retirada de acceso |
-| Dolibarr | Clave dedicada de lectura y esquema confirmado | Referencias, estados, duplicados y revocación |
+| WebDAV/Nextcloud | Cuenta de prueba con permisos mínimos y servidor HTTPS permitido | Lectura, límites del lote, fallo de autenticación y retirada de acceso |
+| Dolibarr | Clave dedicada de lectura y esquema confirmado | Referencias, estados, paginación, duplicados y revocación |
 | Banco | Exportar CSV con `transaction_id,date,amount,currency,reference` | Vista previa, confirmación, repetición idéntica y conflicto de ID |
 
 El CSV bancario se carga en **Finances → Banque & rapprochements**, no en el conector CSV de facturas. Las importaciones remotas se ejecutan explícitamente desde el host. La versión actual rechaza destinos de red privados; no prometer conexión a un Nextcloud exclusivamente interno.

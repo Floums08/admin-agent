@@ -36,7 +36,8 @@ Referencias: [guía de implementación](GUIA-IMPLEMENTACION.md) y [proceso de me
 | Roles, MFA, revocación y administración G06–G07 | Pendiente | | |
 | Backup independiente y recuperación G08 | Pendiente | | |
 | Aceptación funcional y formación G09–G10 | Pendiente | | |
-| Operación, alertas y límites G11–G13 | Pendiente | | |
+| Operación, alertas y capacidad G11 y G13 | Pendiente | | |
+| IA externa, acciones externas y datos de demostración desactivados G12 | Pendiente | | |
 | Restitución G14 | Pendiente | | |
 | OCR y conectores, si incluidos, G15–G16 | Pendiente | | |
 | Finanzas y gastos: escenarios específicos si incluidos | Pendiente | | |

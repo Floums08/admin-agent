@@ -62,8 +62,8 @@ Un cambio desplegado no se cierra sólo porque la CI esté verde. Una mejora que
 
 | Clase | Ejemplo | Regla de tratamiento |
 |---|---|---|
-| Crítica | Acceso cruzado, pérdida de datos, saldo falso aceptado, doble imputación o recuperación imposible | Suspender el flujo afectado y resolver antes de nuevas funciones o expansión |
-| Alta | OCR materialmente incorrecto no detectado en revisión, fuente financiera bloqueada sin procedimiento, backup que incumple el objetivo | Responsable inmediato; resolver o limitar el alcance antes del siguiente lote afectado |
+| Crítica | Acceso cruzado, pérdida de datos, error de importe/identidad/estado no detectado en revisión, doble imputación o recuperación imposible | Suspender el flujo afectado y resolver antes de nuevas funciones o expansión |
+| Alta | Errores OCR detectados que bloquean un lote, fuente financiera bloqueada sin procedimiento, backup que incumple el objetivo | Responsable inmediato; resolver o limitar el alcance antes del siguiente lote afectado |
 | Media | Muchas correcciones, formato repetitivo no cubierto, tareas manuales evitables | Ordenar por frecuencia, tiempo y esfuerzo |
 | Baja | Texto, navegación o comodidad sin impacto material | Agrupar después de resolver riesgos mayores |
 
@@ -96,7 +96,7 @@ Separar siempre cliente, proceso, periodo, versión, idioma/formato y cohorte si
 
 El registro `admin_agent.pilot` ya permite introducir observaciones y generar informes para el piloto de facturas. Esas observaciones son humanas, no telemetría automática de todo el producto. El tiempo asistido incluye revisión, y ésta incluye corrección: no sumarlos una segunda vez. Registrar la referencia manual antes de ver propuestas y advertir el posible aprendizaje al repetir la misma pieza.
 
-La medición de gastos, asignaciones financieras, costes de servicio y supervisión completa sigue siendo manual. El lote ampliado de 18 piezas tiene su propio validador; no cargar su manifiesto en la CLI del piloto de diez facturas.
+El informe actual del piloto ofrece medias y totales de tiempo; la mediana propuesta se calcula aparte a partir de las observaciones. La medición de gastos, asignaciones financieras, costes de servicio y supervisión completa sigue siendo manual. El lote ampliado de 18 piezas tiene su propio validador; no cargar su manifiesto en la CLI del piloto de diez facturas.
 
 ### Criterios iniciales propuestos
 
